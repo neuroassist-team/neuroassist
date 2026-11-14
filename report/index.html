@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeuroAssist: a lightweight AI assistant for brain tumor surgery planning</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}]})"></script>
+<style>
+:root{--bg:#0e1a24;--card:#16293a;--ink:#e8f1f3;--mut:#9fb6c2;--teal:#2dd4bf;--amb:#fbbf24;--red:#f87171;--line:#2c4358}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:0 20px 80px}
+h1,h2,h3{line-height:1.2}
+h1{font-size:2.5rem;margin:.2em 0}
+h2{font-size:1.7rem;color:var(--teal);margin:2.4em 0 .5em;border-bottom:1px solid var(--line);padding-bottom:.3em}
+h3{font-size:1.15rem;color:var(--amb);margin:.2em 0 .4em}
+a{color:var(--teal)}
+.hero{padding:56px 0 8px}.hero p{color:var(--mut);font-size:1.15rem}
+.tag{display:inline-block;background:#0b3d4a;color:#9be7dd;border-radius:99px;padding:2px 12px;font-size:.8rem;margin-right:6px}
+.warn{background:#3b2a05;color:#ffd98a;border-radius:8px;padding:10px 14px;font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.card{background:var(--card);border-radius:12px;padding:18px 20px}
+.card p{margin:.4em 0}.why{color:var(--mut);font-size:.95rem}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}th{color:var(--amb)}
+.scroll{overflow-x:auto}
+svg{max-width:100%;height:auto}
+.eq{background:#0a121a;border-left:4px solid var(--teal);border-radius:6px;padding:6px 14px;overflow-x:auto;margin:.6em 0}
+.bar{background:#0a121a;border-radius:6px;height:22px;margin:4px 0;position:relative}
+.bar i{display:block;height:100%;border-radius:6px}.bar b{position:absolute;left:8px;top:0;font-size:.8rem;line-height:22px}
+figure{margin:0}figure img{width:100%;border-radius:8px;background:#0a121a}figcaption{color:var(--mut);font-size:.88rem;margin-top:4px}
+input[type=range]{width:100%;accent-color:var(--teal)}
+.pend{color:var(--mut);font-style:italic}
+details.card{margin:14px 0}summary{cursor:pointer;font-size:1.05rem;color:var(--amb)}details[open] summary{margin-bottom:8px}
+footer{color:var(--mut);font-size:.85rem;margin-top:60px}
+</style>
+</head>
+<body><main>
+
+<header class="hero">
+<span class="tag">HackPrinceton</span><span class="tag">BraTS 2020</span><span class="tag">PyTorch + MONAI</span>
+<h1>🧠 NeuroAssist</h1>
+<p>A lightweight AI assistant that segments brain tumors from MRI fast enough for interactive surgical planning.</p>
+<div class="warn">Research prototype. Not a medical device and not for clinical use.</div>
+</header>
+
+<h2>1. The problem</h2>
+<div class="grid">
+<div class="card"><h3>Why it matters</h3><p>Before removing a brain tumor, a neurosurgeon needs to know exactly where the tumor is, how big each part is, and how much healthy tissue lies near it. Outlining this by hand on four MRI scans takes a long time and varies between people.</p></div>
+<div class="card"><h3>What AI already does</h3><p>Models such as nnU-Net and SwinUNETR segment BraTS tumors with excellent Dice scores. Accuracy is not the bottleneck any more.</p></div>
+<div class="card"><h3>The gap we attack</h3><p>These models are <b>large and slow</b>: tens of millions of parameters and hundreds of GFLOPs per scan. That is hard to run on a hospital workstation or edge device, and too slow to re-run while a surgeon adjusts a plan.</p></div>
+</div>
+<p><b>Our question:</b> how small and fast can we make the model while keeping accuracy close, and can we turn the result into a planning tool a surgeon could actually use?</p>
+
+<h2>2. Papers and tools we built on</h2>
+<div class="scroll"><table>
+<tr><th>Work</th><th>What we took from it</th></tr>
+<tr><td><b>nnU-Net</b>, Isensee et al., <i>Nature Methods</i> 2021</td><td>The recipe for a strong 3D U-Net: 5 levels, stride-2 downsampling, instance norm, leaky ReLU, residual blocks, Dice + cross-entropy. Our baseline follows it, using MONAI's <code>DynUNet</code> (nnU-Net-style, not the full self-configuring pipeline).</td></tr>
+<tr><td><b>BraTS challenge</b>, Menze et al. 2015; Bakas et al. 2017/2018</td><td>The data, labels and the Dice-on-regions evaluation (whole tumor, tumor core, enhancing tumor).</td></tr>
+<tr><td><b>Swin UNETR</b>, Hatamizadeh et al., 2021</td><td>The other state-of-the-art family that motivates our size and speed concern (transformer encoder, heavy).</td></tr>
+<tr><td><b>Knowledge distillation</b>, Hinton, Vinyals, Dean, 2015</td><td>Train a small student to copy the soft predictions of a big teacher.</td></tr>
+<tr><td><b>MONAI</b>, Cardoso et al. 2022</td><td>Medical-imaging building blocks: networks, losses, 3D augmentation.</td></tr>
+<tr><td>Also used</td><td>Dice loss (Milletari et al., V-Net 2016), MC-dropout (Gal and Ghahramani 2016), depthwise-separable convolutions (MobileNets, Howard et al. 2017), Jensen-Shannon divergence (Lin 1991), Harvard-Oxford atlas.</td></tr>
+</table></div>
+
+<h2>3. What we changed, and why</h2>
+<div class="scroll"><table>
+<tr><th>Change</th><th>Baseline</th><th>NeuroAssist</th><th>Why</th></tr>
+<tr><td>Width</td><td>32-64-128-256-320 channels</td><td>8-16-32-64-128</td><td>A conv layer's weights scale with in x out channels, so 4x narrower gives about 16x fewer weights.</td></tr>
+<tr><td>Blocks</td><td>Residual</td><td>Plain convs</td><td>Removes extra convolutions per block.</td></tr>
+<tr><td>Training signal</td><td>Labels only</td><td>Labels + teacher's soft predictions</td><td>Hypothesis: a small model learns better from a teacher's soft output. Our ablation did not confirm it (see Results).</td></tr>
+<tr><td>Speed tricks</td><td>none</td><td>FP16, channels-last, ONNX, INT8</td><td>Extra latency cuts with no new model design.</td></tr>
+<tr><td>Output</td><td>A segmentation mask</td><td>Volumes, safety margins, trajectory check, 3D view, uncertainty map</td><td>A surgeon needs decision support, not only a mask.</td></tr>
+</table></div>
+
+<h2>4. How it fits together</h2>
+<svg viewBox="0 0 960 300" role="img" aria-label="Pipeline: four MRI scans, preprocessing, teacher and student networks with distillation, segmentation, planning tools">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#2dd4bf"/></marker></defs>
+<g font-family="system-ui,sans-serif" font-size="15" fill="#e8f1f3" text-anchor="middle">
+<rect x="0" y="105" width="130" height="90" rx="10" fill="#16293a"/><text x="65" y="145">4 MRI scans</text><text x="65" y="168" font-size="12" fill="#9fb6c2">FLAIR T1 T1ce T2</text>
+<rect x="170" y="105" width="140" height="90" rx="10" fill="#16293a"/><text x="240" y="140">Preprocess</text><text x="240" y="162" font-size="12" fill="#9fb6c2">z-score, crop, 4 to 3</text>
+<rect x="360" y="10" width="200" height="85" rx="10" fill="#0f766e"/><text x="460" y="45">Teacher (baseline)</text><text x="460" y="68" font-size="12">big, slow, accurate</text>
+<rect x="360" y="205" width="200" height="85" rx="10" fill="#92400e"/><text x="460" y="240">Student (ours)</text><text x="460" y="263" font-size="12">small, fast</text>
+<rect x="620" y="105" width="140" height="90" rx="10" fill="#16293a"/><text x="690" y="140">Segmentation</text><text x="690" y="162" font-size="12" fill="#9fb6c2">ET, necrosis, edema</text>
+<rect x="810" y="105" width="150" height="90" rx="10" fill="#16293a"/><text x="885" y="140">Planning tools</text><text x="885" y="162" font-size="12" fill="#9fb6c2">margins, 3D, uncertainty</text>
+<text x="545" y="152" fill="#fbbf24" font-size="13">soft labels</text></g>
+<g stroke="#2dd4bf" stroke-width="3" fill="none" marker-end="url(#a)"><path d="M130 150H168"/><path d="M310 130L358 70"/><path d="M310 170L358 230"/><path d="M460 96V203" stroke="#fbbf24"/><path d="M560 235L620 180"/><path d="M760 150H808"/></g></svg>
+<p class="why">Training uses both networks. At run time only the small student is needed.</p>
+
+<h3>Size comparison</h3>
+<svg viewBox="0 0 960 230" role="img" aria-label="Channel widths per level: teacher 32 64 128 256 320 versus student 8 16 32 64 128">
+<g font-family="system-ui,sans-serif" font-size="14" fill="#e8f1f3">
+<text x="0" y="22">Teacher</text><text x="0" y="132">Student</text>
+</g>
+<g id="bars"></g></svg>
+<script>
+(function(){const T=[32,64,128,256,320],S=[8,16,32,64,128],g=document.getElementById('bars'),ns='http://www.w3.org/2000/svg';
+function row(a,y,c){a.forEach((v,i)=>{const r=document.createElementNS(ns,'rect');r.setAttribute('x',90+i*170);r.setAttribute('y',y);r.setAttribute('width',v*0.45);r.setAttribute('height',34);r.setAttribute('rx',5);r.setAttribute('fill',c);g.appendChild(r);
+const t=document.createElementNS(ns,'text');t.setAttribute('x',90+i*170);t.setAttribute('y',y+54);t.setAttribute('fill','#9fb6c2');t.setAttribute('font-size','13');t.textContent='level '+(i+1)+': '+v+' ch';g.appendChild(t)})}
+row(T,10,'#0f766e');row(S,120,'#d97706');})();
+</script>
+<p class="why">Bar length is the number of channels at each level of the U-Net.</p>
+
+<h2>5. The maths, in plain language</h2>
+<div class="grid">
+<div class="card"><h3>Dice loss: reward overlap</h3>
+<div class="eq">$$\mathcal{L}_{Dice}=1-\frac{1}{|C|}\sum_c\frac{2\sum_i p_{ic}g_{ic}}{\sum_i p_{ic}+\sum_i g_{ic}}$$</div>
+<p>Dice is "twice the overlap divided by the total size of both masks". 1 means identical, 0 means no overlap.</p>
+<p class="why"><b>Why:</b> a tumor is only a few percent of the scan. Plain accuracy would be 97% by predicting "no tumor". Dice ignores the empty background and focuses on the tumor.</p></div>
+<div class="card"><h3>Cross-entropy: be confident and right</h3>
+<div class="eq">$$\mathcal{L}_{CE}=-\frac1N\sum_i\sum_c g_{ic}\log p_{ic}$$</div>
+<p>For every voxel it punishes the model when it gives a low probability to the true class.</p>
+<p class="why"><b>Why:</b> Dice gives noisy signals when a structure is tiny or absent in a patch. Cross-entropy is smooth and steady, so we add both.</p></div>
+<div class="card"><h3>Distillation: learn from a teacher's doubt</h3>
+<div class="eq">$$\mathcal L=\mathcal L_{seg}+\alpha T^2\,\mathrm{KL}(p^t_T\Vert p^s_T),\ \ p_T=\mathrm{softmax}(z/T)$$</div>
+<p>At a tumor border the teacher may say "60% edema, 30% core". A hard label only says "edema". The student copies the teacher's full opinion.</p>
+<p class="why"><b>Why T:</b> a higher temperature flattens the probabilities so small ones become visible (try the slider below). <b>Why T²:</b> softer targets shrink gradients by about 1/T², so T² keeps the distillation term balanced against the label loss.</p><p class="why"><b>In our experiment:</b> no measurable gain over training from scratch (see Results).</p></div>
+<div class="card"><h3>Safety margin: distance to the tumor</h3>
+<div class="eq">$$D(x)=\min_{t\in TC}\lVert x-t\rVert_2,\quad \text{margin}=\{x:D(x)\le m\}$$</div>
+<p>For every voxel, the distance to the nearest tumor-core voxel. Voxels within m millimetres form a shell around the tumor.</p>
+<p class="why"><b>Why:</b> it is exact in 3D and fast, and it gives surgeons 5, 10 and 15 mm shells to reason about. BraTS voxels are 1 mm, so voxel distance is millimetres.</p></div>
+<div class="card"><h3>HD95: how wrong are the edges?</h3>
+<div class="eq">$$\mathrm{HD95}=P_{95}\big(\{d(a,B)\}\cup\{d(b,A)\}\big)$$</div>
+<p>Take every boundary point of the prediction and its distance to the true boundary (and vice versa). Report the 95th-percentile distance, in mm.</p>
+<p class="why"><b>Why:</b> the plain maximum is ruined by one stray voxel. The 95th percentile measures edge error robustly.</p></div>
+<div class="card"><h3>Uncertainty: where do two models disagree?</h3>
+<div class="eq">$$\mathrm{JS}=\tfrac12\mathrm{KL}(p_t\Vert m)+\tfrac12\mathrm{KL}(p_s\Vert m),\ m=\tfrac{p_t+p_s}{2}$$</div>
+<p>If the big and the small model give different probabilities for a voxel, a human should look there.</p>
+<p class="why"><b>Why JS:</b> it is symmetric and stays finite even when a probability is 0, unlike plain KL.</p></div>
+<div class="card"><h3>Flip test-time augmentation</h3>
+<div class="eq">$$\bar p=\frac{1}{|\mathcal F|}\sum_{f\in\mathcal F}f^{-1}\big(\mathrm{softmax}(m(f(x)))\big)$$</div>
+<p>Predict on the scan and its mirror images, un-mirror, and average.</p>
+<p class="why"><b>Why:</b> each flip makes slightly different mistakes, so averaging cancels some of them. It costs 8x the compute.</p></div>
+<div class="card"><h3>Making convs cheaper</h3>
+<div class="eq">$$k^3C_{in}C_{out}\ \to\ k^3C_{in}+C_{in}C_{out}$$</div>
+<p>Depthwise-separable convolution splits one big convolution into a per-channel one and a channel-mixing one. INT8 stores numbers in 8 bits: \(q=\mathrm{round}(x/s)+z\).</p>
+<p class="why"><b>Why:</b> far fewer multiplications. On GPUs 3D depthwise kernels can still be slow, so we benchmark instead of assuming.</p></div>
+</div>
+
+<h3>Try it: what does the temperature T do?</h3>
+<div class="card">
+<p>Teacher logits for one border voxel: background 3.0, edema 1.5, tumor core 0.5.</p>
+<input id="T" type="range" min="1" max="6" step="0.5" value="1"><p>T = <b id="Tv">1</b></p>
+<div id="sm"></div>
+<p class="why">At T = 1 the teacher is nearly sure. At higher T the runner-up classes become visible: that is the "dark knowledge" the student learns.</p>
+</div>
+<script>
+(function(){const z=[3,1.5,.5],n=['background','edema','tumor core'],c=['#64748b','#2dd4bf','#f87171'],T=document.getElementById('T'),o=document.getElementById('sm');
+function f(){const t=+T.value;document.getElementById('Tv').textContent=t;const e=z.map(v=>Math.exp(v/t)),s=e.reduce((a,b)=>a+b);
+o.innerHTML=e.map((v,i)=>'<div class="bar"><i style="width:'+(100*v/s).toFixed(1)+'%;background:'+c[i]+'"></i><b>'+n[i]+' '+(100*v/s).toFixed(0)+'%</b></div>').join('')}
+T.oninput=f;f();})();
+</script>
+
+<h3>Safety margin picture</h3>
+<svg viewBox="0 0 960 260" role="img" aria-label="Tumor with 5, 10 and 15 millimetre margin shells">
+<g font-family="system-ui,sans-serif" font-size="14" fill="#e8f1f3" text-anchor="middle">
+<circle cx="480" cy="130" r="120" fill="none" stroke="#e879f9" stroke-width="2.5" stroke-dasharray="6 4"/><text x="480" y="14" fill="#e879f9">15 mm</text>
+<circle cx="480" cy="130" r="90" fill="none" stroke="#fb923c" stroke-width="2.5"/><text x="480" y="44" fill="#fb923c">10 mm</text>
+<circle cx="480" cy="130" r="60" fill="none" stroke="#22d3ee" stroke-width="2.5"/><text x="480" y="74" fill="#22d3ee">5 mm</text>
+<ellipse cx="480" cy="130" rx="34" ry="28" fill="#fbbf24"/><ellipse cx="480" cy="130" rx="16" ry="12" fill="#ef4444"/><text x="480" y="200" fill="#9fb6c2">tumor core</text></g></svg>
+
+<h2>6. Results: every run we did</h2>
+<p>All numbers are on the 74 held-out validation patients of our 80/20 patient-level split of BraTS 2020 training data (same seed and split in every run). HD95 is in millimetres. "pending" means not run yet or not recorded. Run 2 reuses the same architecture as Run 1, so its size and speed are the same.</p>
+<div class="scroll"><table id="res"></table></div>
+<p id="headline"></p>
+<div class="grid" id="bars2"></div>
+
+<details open class="card"><summary><b>Run 1. Main run: baseline and lightweight student</b></summary>
+<p><b>Setup.</b> The baseline (16.67 M parameters, residual blocks, 32 to 320 channels) trained for 50 epochs, about 65 minutes on a T4. The lightweight student (1.41 M parameters, 8 to 128 channels) then trained for 50 epochs with distillation from the baseline (soft-label KL with T = 2, weight 1, plus Dice and cross-entropy), about 50 minutes.</p>
+<p><b>What we found.</b> The baseline reaches 0.833 mean Dice. The student reaches 0.791, a drop of 0.042. In return it has 11.8x fewer parameters, 15x fewer FLOPs, runs 5.0x faster on GPU (FP16) and 5.7x faster on CPU (1.8 s versus 10.4 s per volume), and needs 3x less GPU memory. The cost is boundary accuracy: HD95 roughly doubles on enhancing tumor (4.1 to 8.7 mm) and tumor core (5.7 to 10.2 mm), while whole tumor changes less (6.1 to 8.9 mm).</p>
+<p><b>Deployment extras.</b> ONNX Runtime on CPU takes 1.36 s versus 1.84 s for PyTorch. The INT8 model file is 1.5 MB versus 5.4 MB for FP32. We did not record INT8 accuracy here, so we make no accuracy claim for it.</p>
+<div class="grid"><figure><img src="figures/run1_fig2_training_curves.png" alt="Run 1 training curves" onerror="this.parentNode.style.display='none'"><figcaption>Run 1 training curves.</figcaption></figure><figure><img src="figures/run1_fig3_efficiency.png" alt="Run 1 parameters, FLOPs, latency and Dice" onerror="this.parentNode.style.display='none'"><figcaption>Run 1 size, speed and accuracy.</figcaption></figure><figure><img src="figures/run1_fig4_dice_boxplots.png" alt="Run 1 Dice per case" onerror="this.parentNode.style.display='none'"><figcaption>Run 1 Dice per case and region.</figcaption></figure></div>
+</details>
+
+<details open class="card"><summary><b>Run 2. Ablation: does distillation help?</b></summary>
+<p><b>Setup.</b> Same data, split and settings. The baseline retrained to identical scores (0.833 mean Dice), so training is reproducible. We then trained the lightweight student twice: with distillation and without it (labels only).</p>
+<p><b>What we found.</b> With distillation 0.794 mean Dice, without 0.793 (ET 0.711 vs 0.721, TC 0.786 vs 0.780, WT 0.885 vs 0.878). The distilled student scored 0.791 in Run 1 and 0.794 in Run 2, so run-to-run noise is about 0.003 and the 0.001 difference is not meaningful. The curves cross: the student without distillation is ahead at epoch 2 (0.577 vs 0.473), the distilled one leads at epochs 10 and 20 (0.717 vs 0.654, 0.775 vs 0.766), and the one without leads again at epoch 30 (0.791 vs 0.775). Both end equal.</p>
+<p><b>What we think it means.</b> With 295 training cases and a 1.4 M-parameter student, the hard labels already carry the useful signal. Our teacher is only moderately accurate (0.833), so its soft labels add little. The student's capacity, not the training signal, limits accuracy. The size and speed gains therefore come from the smaller architecture. We only tried one temperature and one weight; other settings and feature-level distillation (Run 3) remain open.</p>
+<div class="grid"><figure><img src="figures/run2_fig2_training_curves.png" alt="Run 2 training curves for baseline, distilled and plain student" onerror="this.parentNode.style.display='none'"><figcaption>Run 2 curves: baseline, distilled student, plain student.</figcaption></figure><figure><img src="figures/run2_fig3_efficiency.png" alt="Run 2 parameters, FLOPs, latency and Dice for three models" onerror="this.parentNode.style.display='none'"><figcaption>Run 2 size, speed and accuracy, three models.</figcaption></figure><figure><img src="figures/run2_fig4_dice_boxplots.png" alt="Run 2 Dice per case for three models" onerror="this.parentNode.style.display='none'"><figcaption>Run 2 Dice per case and region.</figcaption></figure></div>
+</details>
+
+<details class="card"><summary><b>Run 3. Teammate 1: feature-level distillation and sigmoid region head (pending)</b></summary>
+<p><b>Question.</b> Does matching the teacher's intermediate features, which Run 2 did not test, give the student something its labels cannot? And does predicting the three nested regions (WT, TC, ET) with sigmoid outputs help the small model? Results will be added here. Both reuse the same baseline weights and split.</p></details>
+
+<details class="card"><summary><b>Run 4. Teammate 2: depthwise-separable student and dropout student (pending)</b></summary>
+<p><b>Question.</b> Can a depthwise-separable student cut parameters and FLOPs further, and does it actually run faster (3D depthwise kernels can be slow on GPUs)? And does a student trained with dropout give usable MC-dropout uncertainty? Results will be added here.</p></details>
+
+<h3>Qualitative results and planning tools</h3>
+<div class="grid"><figure><img src="figures/fig1_modalities.png" alt="The four MRI sequences and ground truth" onerror="this.parentNode.style.display='none'"><figcaption>The four MRI sequences and ground truth.</figcaption></figure><figure><img src="figures/fig5_qualitative.png" alt="Ground truth, baseline and lightweight predictions" onerror="this.parentNode.style.display='none'"><figcaption>Ground truth, baseline and lightweight predictions.</figcaption></figure><figure><img src="figures/fig6_safety_margins.png" alt="Safety margin contours" onerror="this.parentNode.style.display='none'"><figcaption>Safety-margin contours on three planes.</figcaption></figure><figure><img src="figures/fig7_uncertainty.png" alt="Uncertainty maps" onerror="this.parentNode.style.display='none'"><figcaption>Where the two models disagree.</figcaption></figure></div>
+
+<h2>7. The surgical planning app</h2>
+<div class="grid">
+<div class="card"><h3>Load and compare</h3><p>Pick a held-out case or upload four NIfTI scans. See the baseline, the lightweight model and ground truth side by side.</p></div>
+<div class="card"><h3>Plan</h3><p>Tumor volumes, adjustable 0 to 20 mm safety margin, entry-point trajectory check, interactive 3D model.</p></div>
+<div class="card"><h3>Double-check</h3><p>Teacher-student disagreement map highlights voxels worth a second look.</p></div>
+</div>
+<p>Run it: <code>pip install -r requirements.txt</code> then <code>streamlit run app.py</code>.</p>
+
+<h2>8. Honest limits</h2>
+<ul>
+<li>One dataset, evaluated on a split of the training data. No external or clinical validation.</li>
+<li>Margins are geometric only. There is no map of eloquent cortex, white-matter tracts or vessels beyond an approximate atlas overlay (BraTS uses the SRI24 template, not MNI152).</li>
+<li>Distillation gave no measurable gain over training the same student from scratch (0.794 vs 0.793 mean Dice).</li>
+<li>Boundary error roughly doubles for the lightweight model on enhancing tumor and tumor core (HD95 4.1 to 8.7 mm and 5.7 to 10.2 mm).</li>
+<li>The novelty is applied: a measured size and speed study plus planning and uncertainty tools, not a new network architecture or a new training method.</li>
+</ul>
+
+<footer>HackPrinceton project. Research prototype, not a medical device.</footer>
+</main>
+
+<script>
+/* ---- EDIT ME: one row per trained model. null = pending. Strings are shown as-is. ---- */
+const P="pending";
+const RESULTS=[
+ {run:"1",model:"Baseline (teacher)",params_M:16.67,gflops:958.8,gpu_ms:196.7,cpu_ms:10438,et:.761,tc:.834,wt:.903,mean:.833,h_et:4.15,h_tc:5.68,h_wt:6.06,bar:1},
+ {run:"1",model:"Lightweight + KD",params_M:1.41,gflops:63.0,gpu_ms:39.0,cpu_ms:1837,et:.709,tc:.782,wt:.882,mean:.791,h_et:8.67,h_tc:10.21,h_wt:8.94,bar:1},
+ {run:"2",model:"Lightweight + KD (rerun)",params_M:1.41,gflops:63.0,gpu_ms:"same arch.",cpu_ms:"same arch.",et:.711,tc:.786,wt:.885,mean:.794,h_et:null,h_tc:null,h_wt:null},
+ {run:"2",model:"Lightweight, no KD",params_M:1.41,gflops:63.0,gpu_ms:"same arch.",cpu_ms:"same arch.",et:.721,tc:.780,wt:.878,mean:.793,h_et:null,h_tc:null,h_wt:null,bar:1},
+ {run:"3",model:"Feature-level KD",params_M:1.41,gflops:63.0,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null},
+ {run:"3",model:"Sigmoid region head",params_M:1.41,gflops:null,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null},
+ {run:"4",model:"Depthwise-separable + KD",params_M:null,gflops:null,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null},
+ {run:"4",model:"Lightweight + KD + dropout",params_M:1.41,gflops:63.0,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null}
+];
+(function(){
+const cols=[["params_M","Params (M)"],["gflops","GFLOPs"],["gpu_ms","GPU FP16 ms"],["cpu_ms","CPU ms"],["et","Dice ET"],["tc","Dice TC"],["wt","Dice WT"],["mean","Mean Dice"],["h_et","HD95 ET"],["h_tc","HD95 TC"],["h_wt","HD95 WT"]];
+const f=v=>v==null?'<span class="pend">'+P+'</span>':v;
+document.getElementById('res').innerHTML='<tr><th>Run</th><th>Model</th>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>'+
+ RESULTS.map(r=>'<tr><td>'+r.run+'</td><td>'+r.model+'</td>'+cols.map(c=>'<td>'+f(r[c[0]])+'</td>').join('')+'</tr>').join('');
+const bars=RESULTS.filter(r=>r.bar),col=['#0f766e','#d97706','#64748b'];
+document.getElementById('bars2').innerHTML=[["params_M","Parameters (M), lower is smaller"],["cpu_ms","CPU latency (ms), lower is faster"],["mean","Mean Dice, higher is better"]].map(m=>{
+ const v=bars.map(r=>typeof r[m[0]]==='number'?r[m[0]]:null),mx=Math.max(...v.filter(x=>x!=null),0);
+ return '<div class="card"><h3>'+m[1]+'</h3>'+bars.map((r,i)=>v[i]==null?'':'<div class="bar"><i style="width:'+(100*v[i]/mx).toFixed(0)+'%;background:'+col[i]+'"></i><b>'+r.model+' '+v[i]+'</b></div>').join('')+'</div>'}).join('');
+const b=RESULTS[0],s=RESULTS[1];
+document.getElementById('headline').innerHTML='<b>Run 1 headline:</b> '+(b.params_M/s.params_M).toFixed(1)+'x fewer parameters, '+(b.gflops/s.gflops).toFixed(1)+'x fewer FLOPs, '+(b.cpu_ms/s.cpu_ms).toFixed(1)+'x faster on CPU, mean Dice '+(s.mean-b.mean).toFixed(3)+'.';
+})();
+</script>
+</body></html>

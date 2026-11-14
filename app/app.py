@@ -2,13 +2,13 @@
 NeuroAssist - lightweight AI surgical planning assistant for brain tumor resection (Streamlit demo)
 
 Run:   streamlit run app.py
-Needs: teacher_best.pt + student_kd_best.pt (from the training notebook) next to this file, or in ./checkpoints,
-       or point the sidebar field "Model bundle folder" to the folder that holds them.
+Needs: teacher_best.pt + student_kd_best.pt (from the training notebook). Upload them in the sidebar on first run,
+       or place them next to this file / in ./checkpoints.
 Without checkpoints the app still starts and offers a clearly labelled SYNTHETIC PHANTOM (UI preview only, no AI).
 
 Research prototype. Not a medical device. Not for clinical use.
 """
-import itertools, os, re, json, time, tempfile
+import itertools, os, re, json, time, tempfile, io, math, zipfile
 from pathlib import Path
 
 import numpy as np
@@ -19,6 +19,7 @@ from scipy import ndimage as ndi
 from skimage import measure
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
+from PIL import Image                                              # frame decoding + GIF fallback (ships with scikit-image)
 
 st.set_page_config(page_title="NeuroAssist", page_icon="🧠", layout="wide")
 
@@ -35,7 +36,6 @@ AXES = {"Axial": 2, "Coronal": 1, "Sagittal": 0}
 SPACING = 1.0                                                      # mm, BraTS is 1 mm isotropic
 BASE = Path(__file__).resolve().parent                             # works from any working directory
 DEFAULT_BUNDLE = os.environ.get("NEUROASSIST_DIR", str(BASE))
-WEIGHTS_URL = os.environ.get("NEUROASSIST_WEIGHTS_URL", "")        # e.g. https://github.com/<org>/neuroassist/releases/download/v1.0
 WEIGHT_FILES = ["teacher_best.pt", "student_kd_best.pt"]
 # Results measured on the 74 held-out validation patients (Run 1); shown if results_table.csv is not next to the app.
 KNOWN_RESULTS = pd.DataFrame({
@@ -111,19 +111,6 @@ def _ckpt_candidates(bundle, fname):
 
 def lfs_pointer_found(bundle):
     return any(p.exists() and p.stat().st_size <= 1_000_000 for f in WEIGHT_FILES for p in _ckpt_candidates(bundle, f))
-
-
-def download_weights(base_url, dest=None):
-    """Download the weight files from a GitHub Release (or any folder URL) into <app>/checkpoints/."""
-    import urllib.request
-    dest = Path(dest or BASE / "checkpoints"); dest.mkdir(parents=True, exist_ok=True)
-    for f in WEIGHT_FILES + ["config.json", "results_table.csv"]:
-        try:
-            urllib.request.urlretrieve(f"{base_url.rstrip('/')}/{f}", str(dest / f))
-        except Exception as e:
-            if f in WEIGHT_FILES:
-                raise RuntimeError(f"could not download {f}: {e}")
-    return dest
 
 
 @st.cache_resource(show_spinner="Loading models…")
@@ -373,81 +360,263 @@ def show_plotly(fig):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Sidebar: inputs
+# Rotating 3D video (orbit the camera around the tumor in the current 3D figure)
 # ----------------------------------------------------------------------------------------------------------------------
-st.sidebar.header("1 · Case")
-bundle = st.sidebar.text_input("Model bundle folder", DEFAULT_BUNDLE)
-models = load_models(bundle)
+VID_W, VID_H = 800, 600                    # even sizes (H.264 needs this)
+VID_FRAMES, VID_FPS = 36, 12               # 36 frames / 12 fps = 3 s, one full 360-degree turn
+VID_START_DEG = 45
+
+
+def _orbit_camera(angle_deg, radius=1.5, height=0.8):
+    """Plotly camera on a circle around the vertical (z) axis; the scene centre is the tumor (see _prep_video_fig)."""
+    a = math.radians(angle_deg)
+    return dict(eye=dict(x=radius * math.cos(a), y=radius * math.sin(a), z=height),
+                up=dict(x=0, y=0, z=1), center=dict(x=0, y=0, z=0))
+
+
+def _xyz(tr):
+    return np.column_stack([tr.x, tr.y, tr.z]).astype(float)
+
+
+def _prep_video_fig(fig3d):
+    """Copy of the on-screen figure tuned for video, so the on-screen one is never touched:
+    - tumor centred in the scene (an invisible cube of points centred on the tumor makes the camera orbit it),
+    - glossier lighting, a more visible brain/edema shell."""
+    fig = go.Figure(fig3d)
+    meshes = [t for t in fig.data if t.type == "mesh3d"]
+    if not meshes:
+        return fig
+    core = [_xyz(t) for t in meshes if t.name in ("Necrotic / non-enh. core", "Enhancing tumor")] \
+        or [_xyz(t) for t in meshes if t.name != "Brain"] or [_xyz(t) for t in meshes]
+    ctr = np.vstack(core).mean(0)
+    allv = np.vstack([_xyz(t) for t in fig.data if t.type in ("mesh3d", "scatter3d")])
+    r = np.abs(allv - ctr).max()                                    # cube big enough to contain everything
+    cube = np.array([ctr - r, ctr + r])
+    fig.add_trace(go.Scatter3d(x=cube[:, 0], y=cube[:, 1], z=cube[:, 2], mode="markers", marker=dict(size=1, opacity=0),
+                               name="_bounds", showlegend=False, hoverinfo="skip"))
+    for t in meshes:
+        t.update(lighting=dict(ambient=0.35, diffuse=0.95, specular=0.6, roughness=0.35, fresnel=0.4),
+                 lightposition=dict(x=3000, y=2000, z=4000))
+        if t.name == "Brain":
+            t.opacity = 0.12
+        elif t.name == "Edema":
+            t.opacity = 0.28
+    return fig
+
+
+def _frames_plotly(fig, n_frames):
+    """Preferred path: rotate the camera on the prepared Plotly figure, rasterise each frame with kaleido."""
+    fig.update_layout(width=VID_W, height=VID_H)
+    frames = []
+    for i in range(n_frames):
+        fig.update_layout(scene_camera=_orbit_camera(VID_START_DEG + 360.0 * i / n_frames))
+        png = fig.to_image(format="png", width=VID_W, height=VID_H, scale=1)   # raises if kaleido/Chrome is missing
+        frames.append(np.array(Image.open(io.BytesIO(png)).convert("RGB")))
+    return frames
+
+
+def _frames_matplotlib(fig3d, n_frames, max_faces=15000):
+    """Fallback (no kaleido needed): redraw the traces with Matplotlib, CPU only, with per-face Lambert shading and a
+    light that follows the camera. Meshes are thinned to `max_faces` triangles each, so it is a bit coarser than Plotly."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.colors import to_rgb
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+    fig = Figure(figsize=(VID_W / 100, VID_H / 100), dpi=100, facecolor="#0e1117")
+    FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111, projection="3d", facecolor="#0e1117")
+    shaded, pts, handles = [], [], []
+    for tr in fig3d.data:
+        if tr.type == "mesh3d":
+            v, f = _xyz(tr), np.column_stack([tr.i, tr.j, tr.k]).astype(int)
+            if len(f) > max_faces:
+                f = f[::int(np.ceil(len(f) / max_faces))]
+            tri = v[f]                                              # (F, 3, 3)
+            nrm = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+            nrm /= np.linalg.norm(nrm, axis=1, keepdims=True) + 1e-9
+            col = Poly3DCollection(tri, edgecolors="none")
+            ax.add_collection3d(col)
+            shaded.append((col, nrm, np.array(to_rgb(tr.color)), float(tr.opacity)))
+            pts.append(v); handles.append(Patch(color=tr.color, label=tr.name))
+        elif tr.type == "scatter3d":
+            pts.append(_xyz(tr))
+            if tr.name != "_bounds":                                # planned trajectory
+                ax.plot(tr.x, tr.y, tr.z, color=tr.line.color, lw=3)
+                ax.scatter(tr.x, tr.y, tr.z, color=tr.line.color, s=18)
+                handles.append(Patch(color=tr.line.color, label=tr.name))
+    allp = np.vstack(pts)
+    lo, hi = allp.min(0), allp.max(0)
+    ax.set_xlim(lo[0], hi[0]); ax.set_ylim(lo[1], hi[1]); ax.set_zlim(lo[2], hi[2])
+    ax.set_box_aspect(hi - lo, zoom=1.3)                            # equal scaling, like aspectmode="data"
+    ax.set_axis_off()
+    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, labelcolor="white", fontsize=9)
+    title = getattr(fig3d.layout.title, "text", None)
+    if title:
+        fig.text(0.5, 0.96, title, color="white", ha="center", fontsize=11)
+    el = 25
+    frames = []
+    for i in range(n_frames):
+        az = VID_START_DEG + 360.0 * i / n_frames
+        ax.view_init(elev=el, azim=az)
+        a, e = math.radians(az), math.radians(el)
+        view = np.array([math.cos(e) * math.cos(a), math.cos(e) * math.sin(a), math.sin(e)])
+        light = view + np.array([-0.4 * math.sin(a), 0.4 * math.cos(a), 0.5])   # headlight, nudged up/sideways
+        light /= np.linalg.norm(light)
+        for col, nrm, rgb, alpha in shaded:
+            lam = np.abs(nrm @ light)                               # two-sided diffuse term
+            rgba = np.empty((len(lam), 4))
+            rgba[:, :3] = np.clip(rgb[None] * (0.30 + 0.70 * lam)[:, None] + 0.18 * (lam ** 20)[:, None], 0, 1)  # + highlight
+            rgba[:, 3] = alpha
+            col.set_facecolor(rgba)
+        fig.canvas.draw()
+        frames.append(np.asarray(fig.canvas.buffer_rgba())[..., :3].copy())
+    return frames
+
+
+def _encode_video(frames, fps):
+    """MP4 (H.264) through imageio-ffmpeg; if that is unavailable, fall back to an animated GIF via Pillow."""
+    try:
+        import imageio.v2 as iio
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "rotation.mp4")
+            iio.mimsave(path, frames, fps=fps, codec="libx264", quality=7, macro_block_size=1)
+            with open(path, "rb") as fh:
+                return fh.read(), "mp4"
+    except Exception:
+        ims = [Image.fromarray(f) for f in frames]
+        buf = io.BytesIO()
+        ims[0].save(buf, format="GIF", save_all=True, append_images=ims[1:], duration=int(1000 / fps), loop=0)
+        return buf.getvalue(), "gif"
+
+
+def render_rotation_video(fig3d, n_frames=VID_FRAMES, fps=VID_FPS):
+    """Return (bytes, "mp4"|"gif", backend_name) for a full turn around the tumor in `fig3d`."""
+    vfig = _prep_video_fig(fig3d)
+    try:
+        frames, backend = _frames_plotly(vfig, n_frames), "Plotly + kaleido"
+    except Exception:                                               # kaleido / Chrome missing or failing
+        frames, backend = _frames_matplotlib(vfig, n_frames), "Matplotlib fallback"
+    data, kind = _encode_video(frames, fps)
+    return data, kind, backend
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Sidebar: inputs (everything is uploaded in the browser - no folder paths to type)
+# ----------------------------------------------------------------------------------------------------------------------
+SRC_UPLOAD, SRC_CACHED, SRC_PHANTOM = "Upload MRI scan", "Cached held-out case", "Demo phantom (no AI)"
+
+
+def detect_uploads(files, read=False):
+    """Map sequence key (flair/t1/t1ce/t2/seg) -> (file name, bytes or None) from loose .nii/.nii.gz uploads
+    and/or a zipped BraTS case folder. `read=False` only looks at names, so it is cheap enough to run on every rerun."""
+    found = {}
+    for f in files or []:
+        if f.name.lower().endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(f.getvalue())) as z:
+                    for n in z.namelist():
+                        base = Path(n).name
+                        k = find_modality(base)
+                        if k and not base.startswith(".") and base.lower().endswith((".nii", ".nii.gz")):
+                            found[k] = (base, z.read(n) if read else None)
+            except zipfile.BadZipFile:
+                pass
+        elif (k := find_modality(f.name)):
+            found[k] = (f.name, f.getvalue() if read else None)
+    return found
+
+
+def save_weights(files):
+    """Store uploaded weight files where load_models() looks for them (app folder, else a temp folder)."""
+    keep = {f.name: f.getvalue() for f in files if f.name in WEIGHT_FILES + ["config.json", "results_table.csv"]}
+    for d in (Path(DEFAULT_BUNDLE) / "checkpoints", Path(tempfile.gettempdir()) / "neuroassist"):
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            for name, data in keep.items():
+                (d / name).write_bytes(data)
+            st.session_state["bundle_dir"] = str(d.parent if d.name == "checkpoints" else d)
+            return
+        except OSError:                                             # read-only app folder -> try the temp folder
+            continue
+
+
+st.sidebar.header("1 · Model")
+bundle = st.session_state.get("bundle_dir", DEFAULT_BUNDLE)
+try:
+    models = load_models(bundle)
+except Exception as e:                                              # e.g. wrong or corrupt weight file
+    models = None
+    st.sidebar.error(f"Could not load the model weights: {e}")
 if models is None:
     if lfs_pointer_found(bundle):
         st.sidebar.error("Found a Git LFS pointer instead of the real weights. Run:  git lfs install && git lfs pull")
-    st.sidebar.warning("Weights not found. Put teacher_best.pt and student_kd_best.pt in ./checkpoints/ next to app.py "
-                       "(or download them below). Until then only the synthetic phantom preview works.")
-    with st.sidebar.expander("Download weights from a GitHub Release"):
-        url = st.text_input("Release folder URL", WEIGHTS_URL, placeholder="https://github.com/<org>/<repo>/releases/download/v1.0")
-        if st.button("Download weights") and url:
-            try:
-                with st.spinner("Downloading (about 70 MB)…"):
-                    download_weights(url)
-                load_models.clear(); st.rerun()
-            except Exception as e:
-                st.error(str(e))
+    st.sidebar.warning("Model weights not found. Upload them once to enable the AI models "
+                       "(until then only the demo phantom works).")
+    w_up = st.sidebar.file_uploader("teacher_best.pt + student_kd_best.pt (config.json / results_table.csv optional)",
+                                    type=["pt", "json", "csv"], accept_multiple_files=True, key="weights_up")
+    have_both = {f.name for f in w_up or []} >= set(WEIGHT_FILES)
+    if st.sidebar.button("Load models", disabled=not have_both):
+        with st.spinner("Loading models…"):
+            save_weights(w_up); load_models.clear()
+        st.rerun()
 else:
-    inf = models["info"]
-    fmt = lambda k: (f"val mean Dice {inf[k]['val']['mean']:.3f}" if inf[k].get("val") else "loaded")
-    st.sidebar.success(f"Models loaded on {models['device'].upper()}\n\nBaseline: {fmt('teacher')}\n\nLightweight: {fmt('student')}")
+    st.sidebar.success(f"Models ready · {models['device'].upper()}")
+    with st.sidebar.expander("Model details"):
+        for label, k in (("Baseline", "teacher"), ("Lightweight", "student")):
+            v = models["info"][k].get("val")
+            st.caption(f"**{label}:** " + (f"val mean Dice {v['mean']:.3f}" if v else "loaded"))
 
-sources = ["Cached held-out case (.npy)", "Upload 4 NIfTI sequences", "BraTS case folder on disk", "Synthetic phantom (UI preview, no AI)"]
-has_cases = bool(list(Path(bundle).glob("cases/*_img.npy")))
-src = st.sidebar.radio("Case source", sources, index=0 if (models is not None and has_cases) else (1 if models is not None else 3))
-tta = st.sidebar.checkbox("Flip test-time augmentation (8x slower, smoother)", value=False)
-
-case_files = sorted(Path(bundle).glob("cases/*_img.npy")) if src == sources[0] else []
-sel_case = uploads = folder = None
-if src == sources[0]:
-    if case_files:
-        sel_case = st.sidebar.selectbox("Patient", [p.name.replace("_img.npy", "") for p in case_files])
-    else:
-        st.sidebar.info("No cached cases found in <bundle>/cases/. Use 'Upload 4 NIfTI sequences' or 'BraTS case folder on disk'.")
-elif src == sources[1]:
-    uploads = st.sidebar.file_uploader("flair / t1 / t1ce / t2 (.nii, .nii.gz), BraTS space 240x240x155", type=["nii", "gz"],
-                                       accept_multiple_files=True)
-elif src == sources[2]:
-    folder = st.sidebar.text_input("Path to e.g. .../BraTS20_Training_001")
-run = st.sidebar.button("▶ Run segmentation", type="primary")
+st.sidebar.header("2 · Case")
+cached = sorted(Path(bundle).glob("cases/*_img.npy"))
+sources = [SRC_UPLOAD] + ([SRC_CACHED] if cached and models is not None else []) + [SRC_PHANTOM]
+default = SRC_CACHED if SRC_CACHED in sources else (SRC_UPLOAD if models is not None else SRC_PHANTOM)
+src = st.sidebar.radio("Source", sources, index=sources.index(default))
+uploads, sel_case, ready, hint = None, None, False, ""
+if src == SRC_UPLOAD:
+    uploads = st.sidebar.file_uploader("4 sequences (.nii / .nii.gz), or one .zip of a BraTS case folder",
+                                       type=["nii", "gz", "zip"], accept_multiple_files=True, key="case_up")
+    found = detect_uploads(uploads)
+    missing = [MOD_TITLES[m] for m in MODALITIES if m not in found]
+    if uploads:
+        st.sidebar.caption("  ".join(f"{'✅' if m in found else '⬜'} {MOD_TITLES[m]}" for m in MODALITIES)
+                           + ("  ·  ✅ ground truth" if "seg" in found else ""))
+    ready = models is not None and not missing
+    hint = ("Upload the model weights first." if models is None else
+            "Upload the 4 MRI sequences to begin." if not uploads else f"Still needed: {', '.join(missing)}")
+elif src == SRC_CACHED:
+    sel_case = st.sidebar.selectbox("Patient", [p.name.replace("_img.npy", "") for p in cached])
+    ready = True
+else:
+    ready = True
+with st.sidebar.expander("Advanced"):
+    tta = st.checkbox("Flip test-time augmentation (8x slower, smoother)", value=False)
+run = st.sidebar.button("▶ Run segmentation", type="primary", disabled=not ready)
+if hint and not ready:
+    st.sidebar.caption(hint)
 
 
 def load_case():
     """-> dict(name, img, gt, phantom) or None (error already shown)."""
-    if src == sources[0] and sel_case:
+    if src == SRC_CACHED and sel_case:
         return dict(name=sel_case, img=np.load(Path(bundle) / "cases" / f"{sel_case}_img.npy").astype(np.float32),
                     gt=np.load(Path(bundle) / "cases" / f"{sel_case}_lbl.npy"), phantom=False)
-    if src == sources[1]:
-        found = {}
-        for f in uploads or []:
-            k = find_modality(f.name)
-            if k in MODALITIES or k == "seg":
-                tmp = Path(tempfile.mkdtemp()) / f.name
-                tmp.write_bytes(f.getvalue()); found[k] = str(tmp)
-        missing = [m for m in MODALITIES if m not in found]
-        if missing:
-            st.error(f"Missing sequences: {missing}. File names must end in _flair/_t1/_t1ce/_t2 (.nii or .nii.gz).")
+    if src == SRC_UPLOAD:
+        try:
+            files, tmp, paths = detect_uploads(uploads, read=True), Path(tempfile.mkdtemp()), {}
+            for k, (fname, data) in files.items():
+                paths[k] = tmp / fname
+                paths[k].write_bytes(data)
+            vols = {m: load_nii(str(paths[m])) for m in MODALITIES}
+            if any(v.shape != (240, 240, 155) for v in vols.values()):
+                st.error("Volumes must be in BraTS space (240x240x155). Register/resample first.")
+                return None
+            gt = preprocess_label(load_nii(str(paths["seg"]))) if "seg" in paths else None
+            name = re.sub(r"_(flair|t1ce|t1gd|t1|t2|seg)\.nii(\.gz)?$", "", files["flair"][0], flags=re.I) or "Uploaded case"
+            return dict(name=name, img=preprocess_modalities(vols), gt=gt, phantom=False)
+        except Exception as e:
+            st.error(f"Could not read the uploaded scan: {e}")
             return None
-        vols = {m: load_nii(found[m]) for m in MODALITIES}
-        if any(v.shape != (240, 240, 155) for v in vols.values()):
-            st.error("Volumes must be in BraTS space (240x240x155). Register/resample first.")
-            return None
-        gt = preprocess_label(load_nii(found["seg"])) if "seg" in found else None
-        return dict(name="Uploaded case", img=preprocess_modalities(vols), gt=gt, phantom=False)
-    if src == sources[2] and folder:
-        d = Path(folder)
-        files = {find_modality(f.name): f for f in d.glob("*.nii*") if find_modality(f.name)} if d.is_dir() else {}
-        if not all(m in files for m in MODALITIES):
-            st.error("Folder not found or it lacks the four sequences.")
-            return None
-        gt = preprocess_label(load_nii(str(files["seg"]))) if "seg" in files else None
-        return dict(name=d.name, img=preprocess_modalities({m: load_nii(str(files[m])) for m in MODALITIES}), gt=gt, phantom=False)
-    if src == sources[3]:
+    if src == SRC_PHANTOM:
         img, gt = make_phantom()
         return dict(name="Synthetic phantom", img=img, gt=gt, phantom=True)
     st.error("Choose or provide a case first.")
@@ -479,14 +648,17 @@ if run:
 
 res = st.session_state.get("res")
 if res is None:
-    st.info("👈 Select a case in the sidebar and press **Run segmentation**. "
-            "The app compares the heavy baseline with the lightweight distilled model, then offers margin, 3D, trajectory and uncertainty tools.")
+    st.markdown("#### Get started")
+    g = st.columns(3)
+    g[0].markdown("**1 · Add a case**\n\nUpload the 4 MRI sequences (.nii / .nii.gz) or one .zip of a BraTS case in the sidebar.")
+    g[1].markdown("**2 · Run**\n\nPress **▶ Run segmentation**. The baseline and lightweight networks both run on your machine.")
+    g[2].markdown("**3 · Explore**\n\nCompare segmentations, set a safety margin, plan a trajectory, export a rotating 3D video.")
     st.stop()
 if res["phantom"]:
     st.markdown('<div class="pre">SYNTHETIC PHANTOM: UI preview only. These "predictions" are smoothed copies of a made-up mask; no AI model ran.</div>',
                 unsafe_allow_html=True)
 
-st.sidebar.header("2 · View")
+st.sidebar.header("3 · View")
 plane = st.sidebar.radio("Plane", list(AXES), horizontal=True)
 idx = st.sidebar.slider("Slice", 0, 127, int(res["best"]), key=f"slice_{res['id']}")
 modality = st.sidebar.selectbox("Background sequence", MODALITIES, index=2, format_func=lambda m: MOD_TITLES[m])
@@ -548,7 +720,36 @@ with tabs[2]:
                 c1.caption(f"**{k_}:** {v_}")
     with c2:
         with st.spinner("Building 3D meshes…"):
-            show_plotly(make_3d_figure(seg[key], brain, dist.get(key), margin, traj, f"{res['name']} · {show}"))
+            fig3d = make_3d_figure(seg[key], brain, dist.get(key), margin, traj, f"{res['name']} · {show}")
+            show_plotly(fig3d)
+
+    # ---- rotating video of the current view (selected model, margin and trajectory) ----
+    st.divider()
+    # signature of everything that shapes the 3D view, used to flag a video that no longer matches
+    vid_sig = repr((res["id"], key, margin, None if traj is None else (tuple(traj[0]), tuple(round(float(x), 1) for x in traj[1]))))
+    v1, v2 = st.columns([1, 3])
+    if v1.button("🎬 Generate Rotating 3D Video", key="gen_rot_video"):
+        st.session_state.pop("rot_video", None)                    # clear any previous video first
+        with v2:
+            with st.spinner("Rendering rotating video…"):
+                try:
+                    data, kind, backend = render_rotation_video(fig3d)
+                    st.session_state["rot_video"] = dict(data=data, kind=kind, backend=backend, sig=vid_sig)
+                except Exception as ex:
+                    st.error(f"Video generation failed: {ex}")
+    vid = st.session_state.get("rot_video")
+    if vid:
+        with v2:
+            if vid["kind"] == "mp4":
+                st.video(vid["data"], format="video/mp4")
+            else:
+                st.image(vid["data"])                               # st.video cannot play GIFs
+            st.caption(f"{VID_FRAMES} frames · {VID_FPS} fps · rendered with {vid['backend']}")
+            if vid["sig"] != vid_sig:
+                st.warning("The 3D view has changed since this video was generated. Click the button to refresh it.")
+        v1.download_button(f"⬇️ Download video ({vid['kind'].upper()})", vid["data"],
+                           file_name=f"{res['name']}_rotation.{vid['kind']}",
+                           mime="video/mp4" if vid["kind"] == "mp4" else "image/gif", key="dl_rot_video")
 
 # ---------------------------------------------------------------- report
 with tabs[3]:

@@ -8,3 +8,7 @@ scikit-image
 plotly
 matplotlib
 pandas
+imageio
+imageio-ffmpeg
+kaleido
+pillow

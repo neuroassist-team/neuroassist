@@ -187,11 +187,19 @@ T.oninput=f;f();})();
 <div class="figure-grid"><figure><img src="figures/run2_fig2_training_curves.png" alt="Run 2 training curves for baseline, distilled and plain student" onerror="this.parentNode.style.display='none'"><figcaption>Run 2 curves: baseline, distilled student, plain student.</figcaption></figure><figure><img src="figures/run2_fig3_efficiency.png" alt="Run 2 parameters, FLOPs, latency and Dice for three models" onerror="this.parentNode.style.display='none'"><figcaption>Run 2 size, speed and accuracy, three models.</figcaption></figure><figure><img src="figures/run2_fig4_dice_boxplots.png" alt="Run 2 Dice per case for three models" onerror="this.parentNode.style.display='none'"><figcaption>Run 2 Dice per case and region.</figcaption></figure></div>
 </details>
 
-<details class="card"><summary><b>Run 3. Teammate 1: feature-level distillation and sigmoid region head (pending)</b></summary>
-<p><b>Question.</b> Does matching the teacher's intermediate features, which Run 2 did not test, give the student something its labels cannot? And does predicting the three nested regions (WT, TC, ET) with sigmoid outputs help the small model? Results will be added here. Both reuse the same baseline weights and split.</p></details>
+<details open class="card"><summary><b>Run 3. Feature-level distillation and sigmoid region head</b></summary>
+<p>Adding encoder feature matching to logit distillation yielded <b>0.788 mean validation Dice</b> at epoch 30 (ET 0.702, TC 0.786, WT 0.875), as recorded in the later DWSEP notebook run.</p>
+<p>The lightweight model predicts whole tumor (WT), tumor core (TC), and enhancing tumor (ET) with three sigmoid outputs. It was trained for 50 epochs with Dice and binary cross-entropy losses.</p>
+<p>At epoch 46, the best checkpoint reached <b>0.785 mean validation Dice</b> (ET 0.710, TC 0.769, WT 0.874). <a href="https://www.kaggle.com/code/abugccca/surgicalassist-region-head/log?scriptVersionId=369385378">Kaggle training log</a>.</p>
+<div class="figure-grid">
+  <figure><img src="figures/run3_region_head_validation_dice.png" alt="Validation Dice by epoch for ET, TC, WT, and their mean" loading="lazy"><figcaption>Validation Dice for the sigmoid region head. The best mean Dice was recorded at epoch 46.</figcaption></figure>
+</div>
+</details>
 
-<details class="card"><summary><b>Run 4. Teammate 2: depthwise-separable student and dropout student (pending)</b></summary>
-<p><b>Question.</b> Can a depthwise-separable student cut parameters and FLOPs further, and does it actually run faster (3D depthwise kernels can be slow on GPUs)? And does a student trained with dropout give usable MC-dropout uncertainty? Results will be added here.</p></details>
+<details open class="card"><summary><b>Run 4. Depthwise-separable student with distillation</b></summary>
+<p>The depthwise-separable student reached <b>0.773 mean validation Dice</b> at epoch 48 (ET 0.691, TC 0.766, WT 0.860). Its 0.41 M parameters represent a 71% reduction from the 1.41 M-parameter logit KD student, which scored 0.794 on the same validation split.</p>
+<p>Inference latency is pending in this report. The run skipped the dropout student.</p>
+</details>
 
 <h3>Qualitative results and planning tools</h3>
 <div class="figure-grid"><figure><img src="figures/fig5_qualitative.png" alt="Ground truth, baseline and lightweight predictions" onerror="this.parentNode.style.display='none'"><figcaption>Figure 5. Ground truth, baseline and lightweight predictions.</figcaption></figure><figure><img src="figures/fig6_safety_margins.png" alt="Safety margin contours" onerror="this.parentNode.style.display='none'"><figcaption>Figure 6. Safety-margin contours on three planes.</figcaption></figure><figure><img src="figures/fig7_uncertainty.png" alt="Uncertainty maps" onerror="this.parentNode.style.display='none'"><figcaption>Figure 7. Where the two models disagree.</figcaption></figure></div>
@@ -224,9 +232,9 @@ const RESULTS=[
  {run:"1",model:"Lightweight + KD",params_M:1.41,gflops:63.0,gpu_ms:39.0,cpu_ms:1837,et:.709,tc:.782,wt:.882,mean:.791,h_et:8.67,h_tc:10.21,h_wt:8.94,bar:1},
  {run:"2",model:"Lightweight + KD (rerun)",params_M:1.41,gflops:63.0,gpu_ms:"same arch.",cpu_ms:"same arch.",et:.711,tc:.786,wt:.885,mean:.794,h_et:null,h_tc:null,h_wt:null},
  {run:"2",model:"Lightweight, no KD",params_M:1.41,gflops:63.0,gpu_ms:"same arch.",cpu_ms:"same arch.",et:.721,tc:.780,wt:.878,mean:.793,h_et:null,h_tc:null,h_wt:null,bar:1},
- {run:"3",model:"Feature-level KD",params_M:1.41,gflops:63.0,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null},
- {run:"3",model:"Sigmoid region head",params_M:1.41,gflops:null,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null},
- {run:"4",model:"Depthwise-separable + KD",params_M:null,gflops:null,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null},
+ {run:"3",model:"Feature-level KD",params_M:1.41,gflops:63.0,gpu_ms:null,cpu_ms:null,et:.702,tc:.786,wt:.875,mean:.788,h_et:null,h_tc:null,h_wt:null},
+ {run:"3",model:"Sigmoid region head",params_M:1.41,gflops:null,gpu_ms:null,cpu_ms:null,et:.710,tc:.769,wt:.874,mean:.785,h_et:null,h_tc:null,h_wt:null},
+ {run:"4",model:"Depthwise-separable + KD",params_M:.41,gflops:null,gpu_ms:null,cpu_ms:null,et:.691,tc:.766,wt:.860,mean:.773,h_et:null,h_tc:null,h_wt:null},
  {run:"4",model:"Lightweight + KD + dropout",params_M:1.41,gflops:63.0,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null}
 ];
 (function(){

@@ -168,7 +168,7 @@ T.oninput=f;f();})();
 <ellipse cx="480" cy="130" rx="34" ry="28" fill="#fbbf24"/><ellipse cx="480" cy="130" rx="16" ry="12" fill="#ef4444"/><text x="480" y="200" fill="#9fb6c2">tumor core</text></g></svg>
 
 <h2>6. Results: every run we did</h2>
-<p>All numbers are on the 74 held-out validation patients of our 80/20 patient-level split of BraTS 2020 training data (same seed and split in every run). HD95 is in millimetres. A dash (-) means not run or not recorded. Runs 2 to 4 reuse the lightweight architecture of Run 1 (except the depthwise-separable student), so its size and speed are the same. Dice for Runs 1, 2 and the feature-KD and depthwise students is the best validation checkpoint; the region-head row is the last epoch.</p>
+<p>All numbers are on the 74 held-out validation patients of our 80/20 patient-level split of BraTS 2020 training data (same seed and split in every run). HD95 is in millimetres. A dash (-) means not run or not recorded. Runs 2 to 5 reuse the lightweight architecture of Run 1 (except the depthwise-separable student), so its size and speed are the same. Dice for Runs 1, 2 and the feature-KD, depthwise and Run 5 students is the best validation checkpoint; the region-head row is the last epoch.</p>
 <div class="scroll"><table id="res"></table></div>
 <p id="headline"></p>
 <div class="grid" id="bars2"></div>
@@ -195,10 +195,18 @@ T.oninput=f;f();})();
 <div class="figure-grid"><figure><img src="figures/run3_fig2_training_curves.png" alt="Run 3 training curves for feature-level KD and region head" onerror="this.parentNode.style.display='none'"><figcaption>Run 3 training curves: feature-level KD and region head.</figcaption></figure><figure><img src="figures/run3_fig3_efficiency.png" alt="Run 3 parameters, FLOPs, latency and Dice" onerror="this.parentNode.style.display='none'"><figcaption>Run 3 size, speed and accuracy.</figcaption></figure><figure><img src="figures/run3_fig4_dice_boxplots.png" alt="Run 3 Dice per case" onerror="this.parentNode.style.display='none'"><figcaption>Run 3 Dice per case and region.</figcaption></figure></div>
 </details>
 
-<details open class="card"><summary><b>Run 4. Depthwise-separable student (dropout student not run)</b></summary>
+<details open class="card"><summary><b>Run 4. Depthwise-separable student</b></summary>
 <p><b>Setup.</b> Same data, split and 50 epochs. Replacing the standard 3D convolutions by depthwise-separable ones cuts the student to 0.41 M parameters: 3.4x fewer than the plain student (1.41 M) and 40.7x fewer than the baseline (16.67 M).</p>
 <p><b>What we found.</b> Best mean Dice was 0.773 at epoch 48 (ET 0.691, TC 0.766, WT 0.860); the last epoch gave 0.768. That is 0.021 below the plain 1.41 M student (0.794) and 0.060 below the baseline, in exchange for 3.4x fewer parameters. It learns more slowly than the plain student (0.680 at epoch 10 versus 0.717 for logit-KD) and ends lower, with whole tumor affected most (0.860 vs 0.885).</p>
-<p><b>What we have not measured.</b> FLOPs and latency of this model were not recorded, so we make no speed claim: fewer parameters does not guarantee faster inference, since 3D depthwise kernels can be slow on GPUs. The MC-dropout student was not trained (switched off in this run), so there is no result yet on usable dropout uncertainty.</p>
+<p><b>What we have not measured.</b> FLOPs and latency of this model were not recorded, so we make no speed claim: fewer parameters does not guarantee faster inference, since 3D depthwise kernels can be slow on GPUs. The MC-dropout student was not trained in this run; it is Run 5.</p>
+</details>
+
+<details open class="card"><summary><b>Run 5. MC-dropout student</b></summary>
+<p><b>Setup.</b> Same data, split and 50 epochs. This notebook retrained the baseline (0.833 mean Dice again: ET 0.761, TC 0.834, WT 0.903) and the distilled student (0.788: ET 0.706, TC 0.777, WT 0.881). It then trained a third student with the same 1.41 M-parameter architecture, dropout rate 0.1 and logit-level distillation, about 1 minute per epoch on a T4. MC-dropout keeps dropout switched on at test time and runs the model 10 times to get a spread of predictions.</p>
+<p><b>What we found.</b> Best mean Dice was 0.763 at epoch 24 (ET 0.659, TC 0.753, WT 0.877); the last epoch gave 0.759. That is 0.025 below the plain distilled student in the same run (0.788) and 0.070 below the baseline, with enhancing tumor affected most (0.659 versus 0.706). Validation Dice also moved more from epoch to epoch (0.763 at epoch 24, 0.739 at epoch 26, 0.735 at epoch 30). A single pass costs about the same as the plain student (39.4 ms versus 34.9 ms in the notebook's GPU FP16 benchmark, same architecture at test time), but an MC-dropout uncertainty map needs 10 passes. On the first validation case, 10 samples gave a mean entropy of 0.216 and a maximum per-voxel standard deviation of 0.419.</p>
+<p><b>What we have not measured.</b> We did not test whether the MC-dropout map finds the model's errors better than the teacher-student disagreement map (Figure 7); that comparison only covered flip-TTA and teacher-student maps. HD95 for this model was not recorded, and we tried only one dropout rate.</p>
+<p><b>What we think it means.</b> Dropout cost accuracy, which fits the earlier picture that this 1.4 M-parameter student is limited by capacity: removing units during training hurts, and the teacher's soft labels do not make up for it. It is one run, but the gap (0.025) is about four times the 0.006 spread of the plain student across runs (0.791, 0.794, 0.788), so it is probably real. A smaller dropout rate might lose less.</p>
+<div class="figure-grid"><figure><img src="figures/run5_fig2_training_curves.png" alt="Run 5 training curves" onerror="this.parentNode.style.display='none'"><figcaption>Run 5 training curves.</figcaption></figure><figure><img src="figures/run5_fig3_efficiency.png" alt="Run 5 parameters, FLOPs, latency and Dice" onerror="this.parentNode.style.display='none'"><figcaption>Run 5 size, speed and accuracy.</figcaption></figure><figure><img src="figures/run5_fig4_dice_boxplots.png" alt="Run 5 Dice per case" onerror="this.parentNode.style.display='none'"><figcaption>Run 5 Dice per case and region.</figcaption></figure></div>
 </details>
 
 <h3>Qualitative results and planning tools</h3>
@@ -218,8 +226,8 @@ T.oninput=f;f();})();
 <li>Margins are geometric only. There is no map of eloquent cortex, white-matter tracts or vessels beyond an approximate atlas overlay (BraTS uses the SRI24 template, not MNI152).</li>
 <li>Distillation gave no measurable gain over training the same student from scratch (0.794 vs 0.793 mean Dice), and feature-level distillation (0.788) and a sigmoid region head (0.785) did not help either.</li>
 <li>Boundary error roughly doubles for the lightweight model on enhancing tumor and tumor core (HD95 4.1 to 8.7 mm and 5.7 to 10.2 mm).</li>
-<li>The depthwise-separable student (0.41 M parameters) costs about 0.02 mean Dice, and we have not measured whether it is actually faster. The dropout-based uncertainty was not evaluated.</li>
-<li>Each configuration was trained once (two runs for the region head and the distilled student); differences below about 0.005 Dice should not be read as real.</li>
+<li>The depthwise-separable student (0.41 M parameters) costs about 0.02 mean Dice, and we have not measured whether it is actually faster. The MC-dropout student (dropout 0.1) lost about 0.025 mean Dice against the plain student in the same run (0.763 versus 0.788), and we did not test whether its uncertainty map finds errors better than the teacher-student disagreement map.</li>
+<li>Most configurations were trained once (two runs for the region head, three for the plain distilled student: 0.791, 0.794 and 0.788 mean Dice); differences below about 0.006 Dice should not be read as real.</li>
 <li>The novelty is applied: a measured size and speed study plus planning and uncertainty tools, not a new network architecture or a new training method.</li>
 </ul>
 
@@ -237,7 +245,8 @@ const RESULTS=[
  {run:"3",model:"Feature-level KD",params_M:1.41,gflops:63.0,gpu_ms:"same arch.",cpu_ms:"same arch.",et:.702,tc:.786,wt:.875,mean:.788,h_et:null,h_tc:null,h_wt:null},
  {run:"3",model:"Sigmoid region head (last epoch)",params_M:"≈1.41",gflops:"≈63.0",gpu_ms:"same arch.",cpu_ms:"same arch.",et:.694,tc:.777,wt:.884,mean:.785,h_et:null,h_tc:null,h_wt:null},
  {run:"4",model:"Depthwise-separable student",params_M:0.41,gflops:null,gpu_ms:null,cpu_ms:null,et:.691,tc:.766,wt:.860,mean:.773,h_et:null,h_tc:null,h_wt:null,bar:1},
- {run:"4",model:"Lightweight + KD + dropout",params_M:1.41,gflops:63.0,gpu_ms:null,cpu_ms:null,et:null,tc:null,wt:null,mean:null,h_et:null,h_tc:null,h_wt:null}
+ {run:"5",model:"Lightweight + KD (third run)",params_M:1.41,gflops:63.0,gpu_ms:"same arch.",cpu_ms:"same arch.",et:.706,tc:.777,wt:.881,mean:.788,h_et:9.01,h_tc:11.90,h_wt:10.20},
+ {run:"5",model:"Lightweight + KD + dropout 0.1 (MC-dropout)",params_M:1.41,gflops:63.0,gpu_ms:39.4,cpu_ms:null,et:.659,tc:.753,wt:.877,mean:.763,h_et:null,h_tc:null,h_wt:null}
 ];
 (function(){
 const cols=[["params_M","Params (M)"],["gflops","GFLOPs"],["gpu_ms","GPU FP16 ms"],["cpu_ms","CPU ms"],["et","Dice ET"],["tc","Dice TC"],["wt","Dice WT"],["mean","Mean Dice"],["h_et","HD95 ET"],["h_tc","HD95 TC"],["h_wt","HD95 WT"]];

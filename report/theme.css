@@ -142,16 +142,16 @@ svg { display: block; max-width: 100%; height: auto; }
 .architecture-screen svg { width: min(100%, 1100px); margin: 20px auto; }
 .architecture-screen .why { margin: 14px 0 0; }
 .math-section { display: block; padding: 0; }
-.math-screen { min-height: calc(100svh - 48px); padding: 44px 0; display: flex; flex-direction: column; justify-content: center; }
-.math-screen .grid { min-height: clamp(420px, 60svh, 620px); }
+.math-screen { padding: 56px 0; display: block; }
+.math-screen .math-grid { grid-auto-rows: 1fr; gap: var(--gap); }
 .math-screen .card { display: flex; flex-direction: column; justify-content: flex-start; }
 .grid > .card > h3, .interactive-screen > .card > h3 { min-height: 2.4em; margin-top: 0; }
-.math-screen .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.eq { min-width: 0; background: rgba(9, 27, 23, .45); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; overflow-x: auto; margin: 12px 0; font-size: .84rem; }
+.eq { min-width: 0; min-height: 96px; display: flex; align-items: center; background: none; border: 0; border-radius: 0; padding: 0; overflow-x: auto; margin: 12px 0; font-size: .84rem; flex-shrink: 0; }
+.eq .katex-display { min-width: 100%; }
 .katex-display { margin: .35em 0; }
-.interactive-screen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: stretch; }
+.interactive-screen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; align-items: stretch; padding-block: 0; }
 .interactive-screen .card { display: flex; flex-direction: column; justify-content: flex-start; }
-.interactive-screen svg { max-height: 320px; width: 100%; margin: 12px 0; }
+.interactive-screen svg { width: 100%; max-height: none; height: auto; margin: 12px 0; }
 input[type=range] { width: 100%; accent-color: var(--teal); min-height: 30px; cursor: pointer; }
 .bar { background: rgba(9, 27, 23, .48); border-radius: var(--radius); min-height: 34px; margin: 10px 0; position: relative; overflow: hidden; }
 .bar i { display: block; height: 34px; border-radius: var(--radius); opacity: .6; }
@@ -205,8 +205,6 @@ footer { color: var(--mut); font-size: 12px; margin: 0; border-top: 1px solid va
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .card { padding: 22px; }
   .math-screen .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: auto; }
-  .math-screen .grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
-  .math-screen .card { min-height: 300px; }
   .figure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .figure-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; max-width: 65%; justify-self: center; }
   .architecture-screen .figure-grid > :last-child { max-width: none; }
@@ -271,3 +269,74 @@ footer { color: var(--mut); font-size: 12px; margin: 0; border-top: 1px solid va
   .architecture-screen .diagram-card + .diagram-card { min-height: auto; }
   .image-band, .architecture-screen .image-band { padding-block: 40px; }
 }
+
+/* Full-width chapter bands share one blue-green palette. */
+.hero, .problem, .papers, .changes, .pipeline-screen,
+.architecture-screen #size-comparison, .math-screen, .results-overview,
+.comparison-screen, .app-section, .limits, .interactive-screen, details.card {
+  width: calc(100% + var(--gutter) * 2);
+  margin-inline: calc(-1 * var(--gutter));
+  padding-inline: var(--gutter);
+  background: var(--page-tone, #0e1b1c);
+  border: 0;
+}
+.hero { --page-tone: #0b1517; }
+.problem { --page-tone: #101f20; }
+.papers { --page-tone: #122728; }
+.changes { --page-tone: #193331; }
+.pipeline-screen { --page-tone: #c0ded7; color: #274b43; }
+.pipeline-screen h2 { color: #244b42; }
+.pipeline-screen > .why { color: #47675f; }
+.pipeline-screen svg > g:last-child, .pipeline-screen svg > g:last-child path { stroke: #167e72; }
+.pipeline-screen marker path { fill: #167e72; }
+.pipeline-screen svg text[fill="#8bcdbb"] { fill: #285f52; }
+.architecture-screen #size-comparison { --page-tone: #9bc8bd; color: #244b42; padding-block: clamp(44px, 6vh, 72px); }
+#size-comparison h3 { color: #205d50; }
+#size-comparison .why, #size-comparison svg text { color: #385d53; fill: #385d53; }
+#size-comparison #bars rect:nth-of-type(n+6) { fill: #3e9584; }
+.math-screen { --page-tone: #142c2b; }
+.math-screen .math-grid > .card { min-height: 0; height: 100%; }
+.results-overview { --page-tone: #102326; }
+.comparison-screen { --page-tone: #163331; }
+.app-section { --page-tone: #193a35; }
+.limits { --page-tone: #102927; }
+.interactive-screen { padding: 0; }
+.interactive-screen .card { border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: clamp(28px, 3.5vw, 56px) var(--gutter); }
+.interactive-screen .temperature-block { background: #183d38; }
+.interactive-screen .margin-block { background: #24534a; }
+details.card { padding-block: clamp(28px, 4vw, 60px); }
+#run-1 { --page-tone: #122d2b; }
+#run-2 { --page-tone: #193834; }
+#run-3 { --page-tone: #153133; }
+#run-4 { --page-tone: #1c403a; }
+#run-5 { --page-tone: #173830; }
+/* Every raster chart with a white canvas gets a continuous white surface. */
+details > .figure-grid {
+  width: calc(100% + var(--gutter) * 2);
+  margin: 28px calc(-1 * var(--gutter)) 0;
+  padding: 30px var(--gutter);
+  background: #fff;
+  color: #26363a;
+}
+details > .figure-grid img { border-radius: 0; height: auto; }
+details > .figure-grid figcaption { color: #596a70; }
+.mri-image-window { aspect-ratio: 2554 / 534; overflow: hidden; }
+.mri-image-window img { width: 100%; height: auto; }
+.mri-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 28px; margin: 12px 0 8px; color: #26363a; font-size: var(--type-caption); line-height: 1.5; }
+.mri-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.mri-legend i { width: 22px; height: 9px; flex-shrink: 0; }
+.legend-et { background: rgb(255, 217, 26); }
+.legend-core { background: rgb(235, 46, 46); }
+.legend-edema { background: rgb(38, 204, 115); }
+@media (max-width: 720px) {
+  .math-screen .math-grid { grid-auto-rows: 1fr; }
+  .interactive-screen { grid-template-columns: 1fr; }
+  .mri-legend { justify-content: flex-start; gap: 10px 18px; }
+}
+
+.architecture { display: block; padding: 0; }
+.margin-block svg circle:nth-of-type(1) { stroke: #b4dacd; }
+.margin-block svg text[fill="#476f62"] { fill: #b4dacd; }
+.margin-block svg circle:nth-of-type(2) { stroke: #8fcbb8; }
+.margin-block svg text[fill="#73ad98"] { fill: #8fcbb8; }
+.margin-block svg text[fill="#949fa5"] { fill: #c2d6ce; }

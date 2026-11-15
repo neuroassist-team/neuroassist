@@ -100,7 +100,9 @@
 </div>
 <div class="screen architecture-screen">
 <div class="diagram-card image-band" id="mri-inputs"><h3>MRI inputs and labels</h3>
-<div class="figure-grid"><figure><img src="figures/fig1_modalities.png" alt="The four MRI sequences and ground truth" onerror="this.parentNode.style.display='none'"><figcaption>Figure 1. The four MRI sequences and ground truth.</figcaption></figure></div>
+<div class="figure-grid"><figure><div class="mri-image-window"><img src="figures/fig1_modalities.png" alt="The four MRI sequences and ground truth" onerror="this.parentNode.style.display='none'"></div>
+<!-- The source PNG embeds its legend at the bottom; lay out the same labels below the scan area. -->
+<div class="mri-legend" aria-label="Tumor labels"><span><i class="legend-et" aria-hidden="true"></i>Enhancing tumor</span><span><i class="legend-core" aria-hidden="true"></i>Necrotic / non-enhancing core</span><span><i class="legend-edema" aria-hidden="true"></i>Peritumoral edema</span></div><figcaption>Figure 1. The four MRI sequences and ground truth.</figcaption></figure></div>
 
 </div>
 <div class="diagram-card" id="size-comparison"><h3>Size comparison</h3>
@@ -124,7 +126,7 @@ row(T,10,'#0f766e');row(S,120,'#5db39c');})();
 
 <section class="section math-section" id="section-5" aria-labelledby="heading-5">
 <div class="math-screen"><h2 id="heading-5">The maths, in plain language</h2>
-<div class="grid">
+<div class="grid math-grid">
 <div class="card"><h3>Dice loss: reward overlap</h3>
 <div class="eq">$$\mathcal{L}_{Dice}=1-\frac{1}{|C|}\sum_c\frac{2\sum_i p_{ic}g_{ic}}{\sum_i p_{ic}+\sum_i g_{ic}}$$</div>
 <p>Dice is "twice the overlap divided by the total size of both masks". 1 means identical, 0 means no overlap.</p>
@@ -137,8 +139,7 @@ row(T,10,'#0f766e');row(S,120,'#5db39c');})();
 <div class="eq">$$\mathcal L=\mathcal L_{seg}+\alpha T^2\,\mathrm{KL}(p^t_T\Vert p^s_T),\ \ p_T=\mathrm{softmax}(z/T)$$</div>
 <p>At a tumor border the teacher may say "60% edema, 30% core". A hard label only says "edema". The student copies the teacher's full opinion.</p>
 <p class="why"><b>Why T:</b> a higher temperature flattens the probabilities so small ones become visible (try the slider below). <b>Why T²:</b> softer targets shrink gradients by about 1/T², so T² keeps the distillation term balanced against the label loss.</p><p class="why"><b>In our experiments:</b> no measurable gain over training from scratch, for either logit-level or feature-level distillation (see Results).</p></div>
-</div></div>
-<div class="math-screen"><div class="grid">
+
 <div class="card"><h3>Safety margin: distance to the tumor</h3>
 <div class="eq">$$D(x)=\min_{t\in TC}\lVert x-t\rVert_2,\quad \text{margin}=\{x:D(x)\le m\}$$</div>
 <p>For every voxel, the distance to the nearest tumor-core voxel. Voxels within m millimetres form a shell around the tumor.</p>
@@ -151,8 +152,7 @@ row(T,10,'#0f766e');row(S,120,'#5db39c');})();
 <div class="eq">$$\mathrm{JS}=\tfrac12\mathrm{KL}(p_t\Vert m)+\tfrac12\mathrm{KL}(p_s\Vert m),\ m=\tfrac{p_t+p_s}{2}$$</div>
 <p>If the big and the small model give different probabilities for a voxel, a human should look there.</p>
 <p class="why"><b>Why JS:</b> it is symmetric and stays finite even when a probability is 0, unlike plain KL.</p></div>
-</div></div>
-<div class="math-screen"><div class="grid two">
+
 <div class="card"><h3>Flip test-time augmentation</h3>
 <div class="eq">$$\bar p=\frac{1}{|\mathcal F|}\sum_{f\in\mathcal F}f^{-1}\big(\mathrm{softmax}(m(f(x)))\big)$$</div>
 <p>Predict on the scan and its mirror images, un-mirror, and average.</p>
@@ -161,14 +161,14 @@ row(T,10,'#0f766e');row(S,120,'#5db39c');})();
 <div class="eq">$$k^3C_{in}C_{out}\ \to\ k^3C_{in}+C_{in}C_{out}$$</div>
 <p>Depthwise-separable convolution splits one big convolution into a per-channel one and a channel-mixing one. INT8 stores numbers in 8 bits: \(q=\mathrm{round}(x/s)+z\).</p>
 <p class="why"><b>Why:</b> far fewer multiplications. On GPUs 3D depthwise kernels can still be slow, so we benchmark instead of assuming.</p></div>
-</div></div><div class="screen interactive-screen"><div class="card"><h3>Try it: what does the temperature T do?</h3>
+</div></div><div class="screen interactive-screen" id="interactive-tools"><div class="card temperature-block"><h3>Try it: what does the temperature T do?</h3>
 
 <p>Teacher logits for one border voxel: background 3.0, edema 1.5, tumor core 0.5.</p>
 <input id="T" type="range" min="1" max="6" step="0.5" value="1"><p>T = <b id="Tv">1</b></p>
 <div id="sm"></div>
 <p class="why">At T = 1 the teacher is nearly sure. At higher T the runner-up classes become visible: that is the "dark knowledge" the student learns.</p>
-</div><div class="card"><h3>Safety margin picture</h3>
-<svg viewBox="0 0 960 260" role="img" aria-label="Tumor with 5, 10 and 15 millimetre margin shells">
+</div><div class="card margin-block"><h3>Safety margin picture</h3>
+<svg viewBox="330 0 300 260" role="img" aria-label="Tumor with 5, 10 and 15 millimetre margin shells">
 <g font-family="system-ui,sans-serif" font-size="14" fill="#ccd2d5" text-anchor="middle">
 <circle cx="480" cy="130" r="120" fill="none" stroke="#476f62" stroke-width="2.5" stroke-dasharray="6 4"/><text x="480" y="14" fill="#476f62">15 mm</text>
 <circle cx="480" cy="130" r="90" fill="none" stroke="#73ad98" stroke-width="2.5"/><text x="480" y="44" fill="#73ad98">10 mm</text>

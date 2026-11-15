@@ -905,13 +905,13 @@ vec3 hoverDisperse(vec3 p, vec3 local, float seed) {
  vec2 delta=clip.xy/clip.w-uHoverPosition;
  delta.x*=uAspect;
  float distance=length(delta);
- float radius=.38;
- float influence=1.0-smoothstep(.015,radius,distance);
+ float radius=.14;
+ float influence=1.0-smoothstep(.005,radius,distance);
  influence*=influence*uHoverStrength*smoothstep(.85,.99,uGather);
  vec2 direction=distance>.001?delta/distance:vec2(cos(seed*62.8),sin(seed*62.8));
  float scatter=.70+.60*fract(seed*31.731);
- p.xy+=direction*influence*scatter*.95;
- p.z+=sin(seed*43.71)*influence*.30;
+ p.xy+=direction*influence*scatter*.30;
+ p.z+=sin(seed*43.71)*influence*.10;
  return p;
 }
 
@@ -1088,7 +1088,8 @@ window.addEventListener('message',event => {
 window.addEventListener('resize',fitCoverFrame);
 startButton.addEventListener('click',() => {
   if (entering) return;
-  entering=true;startButton.disabled=true;
+  entering=true;startButton.disabled=true;startButton.textContent='Opening…';
+  window.setTimeout(()=>{entering=false;startButton.disabled=false;startButton.textContent='Start';},8000);
   sendComponentMessage('streamlit:setComponentValue',{value:'start',dataType:'json'});
 });
 sendComponentMessage('streamlit:componentReady',{apiVersion:1});

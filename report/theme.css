@@ -403,3 +403,8 @@ details.card + details.card { border-top: 1px solid var(--amb); }
 @supports not (backdrop-filter: blur(20px)) { .site-nav { background: var(--nav-solid); } }
 
 @media (prefers-reduced-motion: reduce) { .site-nav, .site-nav a, .site-nav .nav-brand img { transition: none; } }
+
+/* The cover animation occupies the original right-hand logo area only. */
+.hero-animation-space { width: clamp(150px, 22vw, 340px); aspect-ratio: 128 / 140; }
+.hero-mark .hero-animation { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; }
+@media (max-width: 720px) { .hero-animation-space { width: 140px; } }

@@ -173,6 +173,8 @@ button[kind="primary"], [data-testid="stBaseButton-primary"] {
   color: #09221d;
   font-weight: 600;
 }
+button[kind="primary"] p, button[kind="primary"] [data-testid="stMarkdownContainer"],
+[data-testid="stBaseButton-primary"] p, [data-testid="stBaseButton-primary"] [data-testid="stMarkdownContainer"] { color: #09221d; }
 button:disabled { opacity: .46; cursor: not-allowed; }
 [data-baseweb="tab-list"] { gap: 6px; background: rgba(21, 36, 32, .55); padding: 6px; border-radius: var(--na-radius); }
 [data-baseweb="tab"] { color: #afc4bb; border-radius: 18px; padding: 12px 18px; }

@@ -79,7 +79,7 @@ main>:not(#canvas-host):not(.cover-layer):not(#error){display:none!important}
 <div class="cover-layer cover-brand"><svg width="128" height="140" viewBox="0 0 128 140" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M35 0C54.33 0 70 15.67 70 35C70 46.6755 69.1491 59.4891 75.8158 69.0741L88.1354 86.7865C89.2561 88.3977 91.3496 88.9349 93.2141 88.3219C95.0357 87.723 96.4307 86.1004 96.4307 84.1829V71.9976C96.4307 63.3733 89.7146 56.2646 84.2334 49.6063C80.9635 45.6343 79 40.5467 79 35C79 22.2975 89.2974 12 102 12C114.703 12 125 22.2975 125 35C125 40.2104 123.267 45.0158 120.347 48.8719C114.943 56.0068 108 63.427 108 72.3775C108 81.4476 114.928 88.9226 121.052 95.6129C125.367 100.327 128 106.606 128 113.5C128 128.136 116.136 140 101.5 140C86.8645 140 75 128.136 75 113.5C75 112.983 75.0148 112.469 75.044 111.96C75.6282 101.766 77.3773 90.3018 71.5513 81.9166L63.0602 69.6955C60.1038 65.4405 54.1897 64.7285 49.4735 66.8739C45.7331 68.5754 42.7588 72.0522 42.7588 76.1614V84.8937C42.7588 92.6171 48.3475 99.3284 51.492 106.383C52.4612 108.557 53 110.966 53 113.5C53 123.165 45.165 131 35.5 131C25.835 131 18 123.165 18 113.5C18 109.823 19.1339 106.412 21.071 103.595C25.2178 97.5667 31 91.4905 31 84.1733C31 75.9682 24.5172 69.3968 17.4248 65.2711C7.00483 59.2097 0 47.9238 0 35C0 15.67 15.67 0 35 0Z" fill="#ffffff"/>
 </svg><span>NeuroAssist</span></div>
-    <div class="cover-layer cover-caption"><p>Pre-operative brain tumor planning</p><p class="instruction" id="cover-hint" aria-live="polite">Drag to rotate</p></div>
+    <div class="cover-layer cover-caption"><p>Pre-operative brain tumor planning</p><p class="instruction" id="cover-hint" aria-live="polite">Move to disperse · Drag to rotate</p></div>
     <div class="cover-layer start-wrap" id="start-wrap"><button id="start" type="button">Start</button></div>
     <div id="error" role="alert" hidden></div>
   </main>
@@ -776,6 +776,7 @@ let points = [], edges = [], pointCount = 0, lineCount = 0, sparkCount = 0;
 let elapsed = 0, gather = 0, paused = false, spinning = true, showConnections = true, speed = 1;
 let spinAngle = -1.96, yaw = 0, pitch = 0.20, zoom = 1.18, drag = null, lastFrame = 0;
 let canvasElement, ui = {}, ready = false, reducedMotion = false;
+let hoverActive=false, hoverStrength=0; const hoverPosition=[0,0], hoverTarget=[0,0];
 let lesionModel, lesionStart = 0, lesionCount = 0, lesionStats = {}, tissueStats = {};
 let tumorBeat = 0; const edgeNoise = new Float32Array(3);
 
@@ -892,9 +893,28 @@ function makeBrain() {
 const transformGLSL=`
 uniform float uTime,uGather,uYaw,uPitch,uAspect,uZoom,uDpr,uTumorBeat;
 uniform vec3 uEdgeNoise;
+uniform vec2 uHoverPosition; uniform float uHoverStrength;
 vec3 rotateY(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(c*p.x+s*p.z,p.y,-s*p.x+c*p.z);}
 vec3 view(vec3 p){p=rotateY(p,uYaw);float c=cos(uPitch),s=sin(uPitch);return vec3(p.x,c*p.y-s*p.z,s*p.y+c*p.z);}
 vec4 project(vec3 p){float d=5.6-p.z;return vec4(p.x*3.0*uZoom/uAspect,p.y*3.0*uZoom+.035*d,0.0,d);}
+
+// Every lesion vertex (yellow core, red shell and tendrils) keeps its original position.
+vec3 hoverDisperse(vec3 p, vec3 local, float seed) {
+ if(local.z != -1.0 || seed < 0.0 || uHoverStrength < .001) return p;
+ vec4 clip=project(p);
+ vec2 delta=clip.xy/clip.w-uHoverPosition;
+ delta.x*=uAspect;
+ float distance=length(delta);
+ float radius=.38;
+ float influence=1.0-smoothstep(.015,radius,distance);
+ influence*=influence*uHoverStrength*smoothstep(.85,.99,uGather);
+ vec2 direction=distance>.001?delta/distance:vec2(cos(seed*62.8),sin(seed*62.8));
+ float scatter=.70+.60*fract(seed*31.731);
+ p.xy+=direction*influence*scatter*.95;
+ p.z+=sin(seed*43.71)*influence*.30;
+ return p;
+}
+
 vec3 organicTarget(vec3 p,vec3 local,float seed){
  if(local.x>.00001){
   vec3 rel=p-vec3(${CONFIG.tumorCenter.map(v=>v.toFixed(8)).join(',')});
@@ -923,7 +943,7 @@ attribute vec3 aTarget,aScatter,aColor,aLocal;attribute vec4 aMeta;
 varying vec4 vColor;uniform float uLines;
 ${transformGLSL}
 void main(){
- vec3 p=morph(aTarget,aScatter,aMeta,aLocal);vec3 v=view(p);gl_Position=project(v);
+ vec3 p=morph(aTarget,aScatter,aMeta,aLocal);vec3 v=hoverDisperse(view(p),aLocal,aMeta.w);gl_Position=project(v);
  float depth=clamp((v.z+2.5)/5.0,.15,1.0);
  float pulse=pow(max(0.0,sin(aTarget.y*4.0+aTarget.z*2.0-uTime*1.65)),18.0);
  float alpha=(.32+depth*.5)*aMeta.z*(.8+.2*sin(uTime*.8+aMeta.x*30.0));
@@ -944,7 +964,7 @@ ${transformGLSL}
 void main(){
  float t=fract(uTime*aSeed.y*.35+aSeed.x);
  vec3 start=organicTarget(aStart,aLocalStart,aSeed.z),end=organicTarget(aEnd,aLocalEnd,aSeed.w);
- vec3 p=mix(start,end,t),v=view(p);gl_Position=project(v);
+ vec3 v=mix(hoverDisperse(view(start),aLocalStart,aSeed.z),hoverDisperse(view(end),aLocalEnd,aSeed.w),t);gl_Position=project(v);
  gl_PointSize=10.0*uDpr*uZoom*4.8/(5.6-v.z);
  float alpha=sin(t*3.14159)*smoothstep(.76,1.0,uGather);
  vec3 cs=mix(vec3(.65,.95,1.0),aColorStart,step(.001,aLocalStart.x));
@@ -957,7 +977,7 @@ function program(vs,fs,spark=false){
  function compile(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
  const p=gl.createProgram(),v=compile(gl.VERTEX_SHADER,vs),f=compile(gl.FRAGMENT_SHADER,fs);gl.attachShader(p,v);gl.attachShader(p,f);gl.linkProgram(p);gl.deleteShader(v);gl.deleteShader(f);
  if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p));
- const uniforms={};for(const name of ['uTime','uGather','uYaw','uPitch','uAspect','uZoom','uDpr','uLines','uTumorBeat','uEdgeNoise'])uniforms[name]=gl.getUniformLocation(p,name);
+ const uniforms={};for(const name of ['uTime','uGather','uYaw','uPitch','uAspect','uZoom','uDpr','uLines','uTumorBeat','uEdgeNoise','uHoverPosition','uHoverStrength'])uniforms[name]=gl.getUniformLocation(p,name);
  const layout=spark?[['aStart',3,0],['aEnd',3,3],['aSeed',4,6],['aColorStart',3,10],['aColorEnd',3,13],['aLocalStart',3,16],['aLocalEnd',3,19]]:[['aTarget',3,0],['aScatter',3,3],['aMeta',4,6],['aColor',3,10],['aLocal',3,13]];
  const attributes=layout.map(([name,size,offset])=>({location:gl.getAttribLocation(p,name),size,offset:offset*4})).filter(a=>a.location>=0);
  return {p,uniforms,attributes,stride:(spark?22:16)*4};
@@ -967,6 +987,7 @@ function use(program,buffer){
  for(const a of program.attributes){gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,program.stride,a.offset);}
  const u=program.uniforms;
  gl.uniform1f(u.uTime,elapsed);gl.uniform1f(u.uGather,gather);gl.uniform1f(u.uYaw,spinAngle+yaw);gl.uniform1f(u.uPitch,pitch);gl.uniform1f(u.uAspect,width/height);gl.uniform1f(u.uZoom,zoom*Math.min(1,width/height*1.2));gl.uniform1f(u.uDpr,pixelDensity());gl.uniform1f(u.uLines,program===lineProgram?1:0);
+ gl.uniform2f(u.uHoverPosition,hoverPosition[0],hoverPosition[1]);gl.uniform1f(u.uHoverStrength,hoverStrength);
  gl.uniform1f(u.uTumorBeat,tumorBeat);gl.uniform3f(u.uEdgeNoise,edgeNoise[0],edgeNoise[1],edgeNoise[2]);
 }
 
@@ -988,6 +1009,8 @@ function draw(){
   if(!ready)return;
   const now=performance.now(),dt=Math.min((now-lastFrame)/1000,.05);lastFrame=now;
   if(!paused && !document.hidden){elapsed+=dt*speed;gather=Math.min(1,gather+dt*speed/CONFIG.gatherSeconds);if(spinning && !drag)spinAngle+=dt*speed*CONFIG.rotationSpeed;}
+  const hoverEase=1-Math.exp(-dt*7);hoverStrength+=((hoverActive&&!drag&&!reducedMotion?1:0)-hoverStrength)*hoverEase;
+  for(let i=0;i<2;i++)hoverPosition[i]+=(hoverTarget[i]-hoverPosition[i])*(1-Math.exp(-dt*16));
   const dynamics=lesionModel.dynamics(elapsed);tumorBeat=dynamics.beat;edgeNoise.set(dynamics.edge);
   gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);
   gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
@@ -1014,11 +1037,12 @@ function bindControls(){
   document.addEventListener('keydown',e=>{if(['INPUT','SELECT','BUTTON','A'].includes(document.activeElement.tagName))return;if(e.code==='Space'){e.preventDefault();togglePlay();}if(e.key.toLowerCase()==='r')replay();});
   canvasElement.addEventListener('pointerdown',e=>{
     if(!e.isPrimary || e.button!==0)return;
-    spinning=false;
+    spinning=false;hoverActive=false;
     drag={x:e.clientX,y:e.clientY,yaw,pitch,moved:false,id:e.pointerId};
     canvasElement.setPointerCapture(e.pointerId);
   });
   canvasElement.addEventListener('pointermove',e=>{
+    updateHover(e);
     if(drag && drag.id===e.pointerId){
       if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>6)drag.moved=true;
       if(drag.moved){
@@ -1030,12 +1054,15 @@ function bindControls(){
   });
   canvasElement.addEventListener('pointerup',e=>{
     if(!drag || drag.id!==e.pointerId)return;
-    drag=null;
+    drag=null;updateHover(e);
     if(canvasElement.hasPointerCapture(e.pointerId))canvasElement.releasePointerCapture(e.pointerId);
     canvasElement.style.cursor='grab';
   });
   canvasElement.addEventListener('pointercancel',()=>{drag=null;canvasElement.style.cursor='grab';});
   canvasElement.addEventListener('lostpointercapture',()=>{drag=null;});
+  canvasElement.addEventListener('pointerenter',updateHover);
+  canvasElement.addEventListener('pointerleave',()=>{hoverActive=false;});
+  window.addEventListener('blur',()=>{hoverActive=false;});
   canvasElement.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.55,Math.min(1.9,zoom*Math.exp(-e.deltaY*.001)));},{passive:false});
   canvasElement.addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;fail(new Error('图形上下文已中断，请刷新页面重新加载。'));});
 }
@@ -1066,6 +1093,15 @@ startButton.addEventListener('click',() => {
 });
 sendComponentMessage('streamlit:componentReady',{apiVersion:1});
 fitCoverFrame();
+
+function updateHover(event) {
+  if(event.pointerType==='touch' || drag || reducedMotion){hoverActive=false;return;}
+  const rect=canvasElement.getBoundingClientRect();
+  hoverTarget[0]=(event.clientX-rect.left)/rect.width*2-1;
+  hoverTarget[1]=1-(event.clientY-rect.top)/rect.height*2;
+  if(!hoverActive){hoverPosition[0]=hoverTarget[0];hoverPosition[1]=hoverTarget[1];}
+  hoverActive=true;
+}
 </script>
 </body>
 </html>

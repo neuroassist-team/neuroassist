@@ -114,6 +114,7 @@ st.markdown("""
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 16px 44px rgba(0, 0, 0, .10);
 }
 .hdr h1 { display: flex; align-items: center; gap: 14px; color: var(--na-heading); margin: 0 0 12px; padding: 0; }
+.hdr h1 > div { display: flex; align-items: center; gap: 14px; }
 .hdr h1 svg { display: block; width: 44px; height: auto; flex-shrink: 0; }
 .hdr p { color: #afc4bb; margin: 0; line-height: 1.6; }
 .warn, .pre {

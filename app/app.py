@@ -47,10 +47,151 @@ FLIP_SETS = [c for r in range(4) for c in itertools.combinations((0, 1, 2), r)]
 
 st.markdown("""
 <style>
-.hdr{background:linear-gradient(90deg,#0b3d4a,#0e1117);padding:14px 22px;border-radius:10px;margin-bottom:8px}
-.hdr h1{margin:0;font-size:1.9rem;color:#e8f6f8}.hdr p{margin:2px 0 0 0;color:#9fc5cc}
-.warn{background:#3b2a05;color:#ffd98a;padding:8px 14px;border-radius:8px;font-size:.85rem;margin-bottom:10px}
-.pre{background:#4a1d1d;color:#ffb4b4;padding:8px 14px;border-radius:8px;font-size:.9rem;margin-bottom:10px}
+/* NeuroAssist report palette and spacing. Presentation only; no widget or chart logic. */
+:root {
+  --na-bg: #0b1517;
+  --na-surface: #142321;
+  --na-ink: #ccd2d5;
+  --na-muted: #949fa5;
+  --na-heading: #dce2e5;
+  --na-teal: #2dd4bf;
+  --na-line: rgba(182, 204, 211, .14);
+  --na-radius: 24px;
+  --na-gutter: clamp(20px, 2.6vw, 52px);
+  --na-gap: clamp(16px, 1.6vw, 28px);
+  --na-padding: clamp(24px, 2.2vw, 36px);
+  --na-glass: linear-gradient(135deg, rgba(49, 66, 63, .40), rgba(15, 28, 29, .62));
+}
+[data-testid="stApp"], [data-testid="stAppViewContainer"], .stApp {
+  background: var(--na-bg);
+  color: var(--na-ink);
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+[data-testid="stHeader"] {
+  background: rgba(15, 28, 29, .62);
+  border-bottom: 1px solid var(--na-line);
+  backdrop-filter: blur(28px) saturate(75%);
+  -webkit-backdrop-filter: blur(28px) saturate(75%);
+}
+[data-testid="stMainBlockContainer"], .main > .block-container {
+  max-width: none;
+  padding: clamp(40px, 6vh, 72px) var(--na-gutter);
+}
+[data-testid="stSidebar"] {
+  background: linear-gradient(160deg, rgba(24, 43, 39, .97), rgba(11, 21, 23, .98));
+  border-right: 1px solid var(--na-line);
+}
+[data-testid="stSidebarUserContent"] { padding: var(--na-padding) 24px; }
+[data-testid="stVerticalBlock"] { gap: var(--na-gap); }
+[data-testid="stMarkdownContainer"] { color: var(--na-ink); line-height: 1.7; }
+[data-testid="stMarkdownContainer"] :is(h1, h2, h3, h4) {
+  color: var(--na-heading);
+  line-height: 1.2;
+  font-weight: 550;
+  letter-spacing: -.025em;
+  padding-top: 0;
+}
+[data-testid="stMarkdownContainer"] h1 { font-size: clamp(28px, 3vw, 44px); letter-spacing: -.045em; }
+[data-testid="stMarkdownContainer"] h2 { font-size: clamp(26px, 2.4vw, 38px); }
+[data-testid="stMarkdownContainer"] h3 { font-size: clamp(20px, 1.65vw, 26px); }
+[data-testid="stMarkdownContainer"] h4 { font-size: 1.1rem; }
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] :is(h2, h3) { font-size: 1.2rem; color: var(--na-teal); }
+[data-testid="stMarkdownContainer"] p { line-height: 1.7; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--na-muted); }
+[data-testid="stMarkdownContainer"] a { color: var(--na-teal); text-underline-offset: .2em; }
+[data-testid="stMarkdownContainer"] a:hover { color: #9ce4d6; }
+[data-testid="stMarkdownContainer"] code { color: #a4c9bd; background: rgba(45, 212, 191, .07); border-radius: 8px; }
+.hdr {
+  background: var(--na-glass);
+  border: 1px solid var(--na-line);
+  border-radius: var(--na-radius);
+  padding: var(--na-padding);
+  margin-bottom: 0;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 16px 44px rgba(0, 0, 0, .10);
+}
+.hdr h1 { color: var(--na-heading); margin: 0 0 12px; }
+.hdr p { color: #afc4bb; margin: 0; line-height: 1.6; }
+.warn, .pre {
+  padding: 14px 18px;
+  margin: 0;
+  border-radius: var(--na-radius);
+  font-size: .875rem;
+  line-height: 1.7;
+}
+.warn { background: rgba(45, 212, 191, .055); border: 1px solid var(--na-line); color: #afc4bb; }
+.pre { background: rgba(136, 56, 45, .13); border: 1px solid rgba(230, 147, 125, .24); color: #e2b5a9; }
+[data-testid="stExpander"] details,
+[data-testid="stFileUploaderDropzone"],
+[data-testid="stMetric"] {
+  background: var(--na-glass);
+  border: 1px solid var(--na-line);
+  border-radius: var(--na-radius);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+[data-testid="stExpander"] summary { padding: 16px 20px; color: #b8d8cd; }
+[data-testid="stExpanderDetails"] { padding: 4px 20px 20px; }
+[data-testid="stFileUploaderDropzone"] { padding: var(--na-padding); }
+[data-testid="stFileUploaderDropzoneInstructions"] { color: var(--na-muted); }
+[data-testid="stMetric"] { padding: 20px 24px; }
+[data-testid="stMetricLabel"] { color: var(--na-muted); }
+[data-testid="stMetricValue"] { color: var(--na-teal); letter-spacing: -.035em; }
+[data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p { color: #bccfc6; }
+[data-baseweb="input"], [data-baseweb="base-input"], [data-baseweb="textarea"],
+[data-baseweb="select"] > div {
+  background: rgba(20, 35, 33, .88);
+  color: var(--na-ink);
+  border-color: var(--na-line);
+  border-radius: 14px;
+}
+[data-baseweb="input"]:focus-within, [data-baseweb="select"]:focus-within > div,
+[data-baseweb="textarea"]:focus-within { border-color: var(--na-teal); box-shadow: 0 0 0 1px rgba(45, 212, 191, .18); }
+:is([data-testid="stButton"], [data-testid="stDownloadButton"], [data-testid="stFileUploader"]) button {
+  border: 1px solid rgba(157, 208, 190, .24);
+  border-radius: var(--na-radius);
+  background: rgba(45, 212, 191, .07);
+  color: #c4d8cf;
+  padding: .6rem 1.15rem;
+  min-height: 42px;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+:is([data-testid="stButton"], [data-testid="stDownloadButton"], [data-testid="stFileUploader"]) button:hover:not(:disabled) {
+  border-color: rgba(45, 212, 191, .65);
+  background: rgba(45, 212, 191, .14);
+  color: #dce9e3;
+}
+button[kind="primary"], [data-testid="stBaseButton-primary"] {
+  background: var(--na-teal);
+  border-color: var(--na-teal);
+  color: #09221d;
+  font-weight: 600;
+}
+button:disabled { opacity: .46; cursor: not-allowed; }
+[data-baseweb="tab-list"] { gap: 6px; background: rgba(21, 36, 32, .55); padding: 6px; border-radius: var(--na-radius); }
+[data-baseweb="tab"] { color: #afc4bb; border-radius: 18px; padding: 12px 18px; }
+[data-baseweb="tab"][aria-selected="true"] { background: rgba(45, 212, 191, .11); color: var(--na-teal); }
+[data-testid="stDataFrame"], [data-testid="stTable"] { border: 1px solid var(--na-line); border-radius: var(--na-radius); overflow: hidden; }
+[data-testid="stTable"] :is(th, td) { border-color: var(--na-line); padding: 14px 18px; }
+[data-testid="stTable"] th { color: #a4c9bd; background: rgba(45, 212, 191, .045); }
+[data-testid="stAlert"] { border-radius: var(--na-radius); }
+[data-testid="stMarkdownContainer"] hr { border-color: var(--na-line); margin: var(--na-gap) 0; }
+@media (max-width: 720px) {
+  :root { --na-gutter: 16px; --na-gap: 16px; --na-padding: 24px; }
+  [data-testid="stMainBlockContainer"], .main > .block-container { padding-top: 40px; }
+  [data-testid="stSidebarUserContent"] { padding-inline: 20px; }
+  [data-testid="stFileUploaderDropzone"] { padding: 20px; }
+  [data-baseweb="tab"] { padding-inline: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { button { transition: none !important; } }
+@supports not (backdrop-filter: blur(20px)) {
+  .hdr, [data-testid="stExpander"] details, [data-testid="stMetric"], [data-testid="stFileUploaderDropzone"] { background: #142321; }
+}
+
 </style>
 <div class="hdr"><h1>🧠 NeuroAssist</h1><p>Pre-operative brain tumor planning · multi-sequence MRI · lightweight distilled 3D network</p></div>
 <div class="warn">⚠️ Research prototype for demonstration only. Not a medical device; not validated for clinical decisions.</div>

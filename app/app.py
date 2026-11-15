@@ -113,9 +113,8 @@ st.markdown("""
   -webkit-backdrop-filter: blur(28px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 16px 44px rgba(0, 0, 0, .10);
 }
-.hdr h1 { display: flex; align-items: center; gap: 14px; color: var(--na-heading); margin: 0 0 12px; padding: 0; }
-.hdr h1 > div { display: flex; align-items: center; gap: 14px; }
-.hdr h1 svg { display: block; width: 44px; height: auto; flex-shrink: 0; }
+.na-brand { display: flex; align-items: center; gap: 14px; color: var(--na-heading); margin: 0 0 12px; font-size: clamp(28px, 3vw, 44px); font-weight: 550; line-height: 1.2; letter-spacing: -.045em; }
+.na-brand img { display: block; width: 44px; height: auto; flex-shrink: 0; }
 .hdr p { color: #afc4bb; margin: 0; line-height: 1.6; }
 .warn, .pre {
   padding: 14px 18px;
@@ -199,9 +198,7 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 }
 
 </style>
-<div class="hdr"><h1><svg width="128" height="140" viewBox="0 0 128 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M35 0C54.33 0 70 15.67 70 35C70 46.6755 69.1491 59.4891 75.8158 69.0741L88.1354 86.7865C89.2561 88.3977 91.3496 88.9349 93.2141 88.3219C95.0357 87.723 96.4307 86.1004 96.4307 84.1829V71.9976C96.4307 63.3733 89.7146 56.2646 84.2334 49.6063C80.9635 45.6343 79 40.5467 79 35C79 22.2975 89.2974 12 102 12C114.703 12 125 22.2975 125 35C125 40.2104 123.267 45.0158 120.347 48.8719C114.943 56.0068 108 63.427 108 72.3775C108 81.4476 114.928 88.9226 121.052 95.6129C125.367 100.327 128 106.606 128 113.5C128 128.136 116.136 140 101.5 140C86.8645 140 75 128.136 75 113.5C75 112.983 75.0148 112.469 75.044 111.96C75.6282 101.766 77.3773 90.3018 71.5513 81.9166L63.0602 69.6955C60.1038 65.4405 54.1897 64.7285 49.4735 66.8739C45.7331 68.5754 42.7588 72.0522 42.7588 76.1614V84.8937C42.7588 92.6171 48.3475 99.3284 51.492 106.383C52.4612 108.557 53 110.966 53 113.5C53 123.165 45.165 131 35.5 131C25.835 131 18 123.165 18 113.5C18 109.823 19.1339 106.412 21.071 103.595C25.2178 97.5667 31 91.4905 31 84.1733C31 75.9682 24.5172 69.3968 17.4248 65.2711C7.00483 59.2097 0 47.9238 0 35C0 15.67 15.67 0 35 0Z" fill="#ffffff"/>
-</svg><span>NeuroAssist</span></h1><p>Pre-operative brain tumor planning · multi-sequence MRI · lightweight distilled 3D network</p></div>
+<div class="hdr"><div class="na-brand" role="heading" aria-level="1"><img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjE0MCIgdmlld0JveD0iMCAwIDEyOCAxNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0zNSAwQzU0LjMzIDAgNzAgMTUuNjcgNzAgMzVDNzAgNDYuNjc1NSA2OS4xNDkxIDU5LjQ4OTEgNzUuODE1OCA2OS4wNzQxTDg4LjEzNTQgODYuNzg2NUM4OS4yNTYxIDg4LjM5NzcgOTEuMzQ5NiA4OC45MzQ5IDkzLjIxNDEgODguMzIxOUM5NS4wMzU3IDg3LjcyMyA5Ni40MzA3IDg2LjEwMDQgOTYuNDMwNyA4NC4xODI5VjcxLjk5NzZDOTYuNDMwNyA2My4zNzMzIDg5LjcxNDYgNTYuMjY0NiA4NC4yMzM0IDQ5LjYwNjNDODAuOTYzNSA0NS42MzQzIDc5IDQwLjU0NjcgNzkgMzVDNzkgMjIuMjk3NSA4OS4yOTc0IDEyIDEwMiAxMkMxMTQuNzAzIDEyIDEyNSAyMi4yOTc1IDEyNSAzNUMxMjUgNDAuMjEwNCAxMjMuMjY3IDQ1LjAxNTggMTIwLjM0NyA0OC44NzE5QzExNC45NDMgNTYuMDA2OCAxMDggNjMuNDI3IDEwOCA3Mi4zNzc1QzEwOCA4MS40NDc2IDExNC45MjggODguOTIyNiAxMjEuMDUyIDk1LjYxMjlDMTI1LjM2NyAxMDAuMzI3IDEyOCAxMDYuNjA2IDEyOCAxMTMuNUMxMjggMTI4LjEzNiAxMTYuMTM2IDE0MCAxMDEuNSAxNDBDODYuODY0NSAxNDAgNzUgMTI4LjEzNiA3NSAxMTMuNUM3NSAxMTIuOTgzIDc1LjAxNDggMTEyLjQ2OSA3NS4wNDQgMTExLjk2Qzc1LjYyODIgMTAxLjc2NiA3Ny4zNzczIDkwLjMwMTggNzEuNTUxMyA4MS45MTY2TDYzLjA2MDIgNjkuNjk1NUM2MC4xMDM4IDY1LjQ0MDUgNTQuMTg5NyA2NC43Mjg1IDQ5LjQ3MzUgNjYuODczOUM0NS43MzMxIDY4LjU3NTQgNDIuNzU4OCA3Mi4wNTIyIDQyLjc1ODggNzYuMTYxNFY4NC44OTM3QzQyLjc1ODggOTIuNjE3MSA0OC4zNDc1IDk5LjMyODQgNTEuNDkyIDEwNi4zODNDNTIuNDYxMiAxMDguNTU3IDUzIDExMC45NjYgNTMgMTEzLjVDNTMgMTIzLjE2NSA0NS4xNjUgMTMxIDM1LjUgMTMxQzI1LjgzNSAxMzEgMTggMTIzLjE2NSAxOCAxMTMuNUMxOCAxMDkuODIzIDE5LjEzMzkgMTA2LjQxMiAyMS4wNzEgMTAzLjU5NUMyNS4yMTc4IDk3LjU2NjcgMzEgOTEuNDkwNSAzMSA4NC4xNzMzQzMxIDc1Ljk2ODIgMjQuNTE3MiA2OS4zOTY4IDE3LjQyNDggNjUuMjcxMUM3LjAwNDgzIDU5LjIwOTcgMCA0Ny45MjM4IDAgMzVDMCAxNS42NyAxNS42NyAwIDM1IDBaIiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPg==" alt=""/><span>NeuroAssist</span></div><p>Pre-operative brain tumor planning · multi-sequence MRI · lightweight distilled 3D network</p></div>
 <div class="warn">⚠️ Research prototype for demonstration only. Not a medical device; not validated for clinical decisions.</div>
 """, unsafe_allow_html=True)
 

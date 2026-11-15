@@ -77,7 +77,7 @@ st.markdown("""
 }
 [data-testid="stMainBlockContainer"], .main > .block-container {
   max-width: none;
-  padding: clamp(40px, 6vh, 72px) var(--na-gutter);
+  padding: calc(64px + var(--na-padding)) var(--na-gutter) clamp(40px, 6vh, 72px);
 }
 [data-testid="stSidebar"] {
   background: linear-gradient(160deg, rgba(24, 43, 39, .97), rgba(11, 21, 23, .98));
@@ -108,12 +108,12 @@ st.markdown("""
   border: 1px solid var(--na-line);
   border-radius: var(--na-radius);
   padding: var(--na-padding);
-  margin-bottom: 0;
+  margin-bottom: var(--na-gap);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 16px 44px rgba(0, 0, 0, .10);
 }
-.hdr h1 { color: var(--na-heading); margin: 0 0 12px; }
+.hdr h1 { color: var(--na-heading); margin: 0 0 12px; padding: 0; }
 .hdr p { color: #afc4bb; margin: 0; line-height: 1.6; }
 .warn, .pre {
   padding: 14px 18px;
@@ -138,6 +138,8 @@ st.markdown("""
 [data-testid="stExpanderDetails"] { padding: 4px 20px 20px; }
 [data-testid="stFileUploaderDropzone"] { padding: var(--na-padding); }
 [data-testid="stFileUploaderDropzoneInstructions"] { color: var(--na-muted); }
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] { padding: 20px 16px; }
+[data-testid="stFileUploaderDropzone"] small { font-size: .75rem; white-space: normal; overflow-wrap: anywhere; }
 [data-testid="stMetric"] { padding: 20px 24px; }
 [data-testid="stMetricLabel"] { color: var(--na-muted); }
 [data-testid="stMetricValue"] { color: var(--na-teal); letter-spacing: -.035em; }
@@ -182,7 +184,7 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 [data-testid="stMarkdownContainer"] hr { border-color: var(--na-line); margin: var(--na-gap) 0; }
 @media (max-width: 720px) {
   :root { --na-gutter: 16px; --na-gap: 16px; --na-padding: 24px; }
-  [data-testid="stMainBlockContainer"], .main > .block-container { padding-top: 40px; }
+  [data-testid="stMainBlockContainer"], .main > .block-container { padding-top: 88px; }
   [data-testid="stSidebarUserContent"] { padding-inline: 20px; }
   [data-testid="stFileUploaderDropzone"] { padding: 20px; }
   [data-baseweb="tab"] { padding-inline: 12px; }

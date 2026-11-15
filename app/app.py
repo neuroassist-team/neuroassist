@@ -21,7 +21,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 from PIL import Image                                              # frame decoding + GIF fallback (ships with scikit-image)
 
-st.set_page_config(page_title="NeuroAssist", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="NeuroAssist", page_icon='<svg width="128" height="140" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 140"><path d="M35 0C54.33 0 70 15.67 70 35C70 46.6755 69.1491 59.4891 75.8158 69.0741L88.1354 86.7865C89.2561 88.3977 91.3496 88.9349 93.2141 88.3219C95.0357 87.723 96.4307 86.1004 96.4307 84.1829V71.9976C96.4307 63.3733 89.7146 56.2646 84.2334 49.6063C80.9635 45.6343 79 40.5467 79 35C79 22.2975 89.2974 12 102 12C114.703 12 125 22.2975 125 35C125 40.2104 123.267 45.0158 120.347 48.8719C114.943 56.0068 108 63.427 108 72.3775C108 81.4476 114.928 88.9226 121.052 95.6129C125.367 100.327 128 106.606 128 113.5C128 128.136 116.136 140 101.5 140C86.8645 140 75 128.136 75 113.5C75 112.983 75.0148 112.469 75.044 111.96C75.6282 101.766 77.3773 90.3018 71.5513 81.9166L63.0602 69.6955C60.1038 65.4405 54.1897 64.7285 49.4735 66.8739C45.7331 68.5754 42.7588 72.0522 42.7588 76.1614V84.8937C42.7588 92.6171 48.3475 99.3284 51.492 106.383C52.4612 108.557 53 110.966 53 113.5C53 123.165 45.165 131 35.5 131C25.835 131 18 123.165 18 113.5C18 109.823 19.1339 106.412 21.071 103.595C25.2178 97.5667 31 91.4905 31 84.1733C31 75.9682 24.5172 69.3968 17.4248 65.2711C7.00483 59.2097 0 47.9238 0 35C0 15.67 15.67 0 35 0Z" fill="#000000"/></svg>', layout="wide")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Config (must match the notebook; overridden by config.json if the notebook exported one)
@@ -113,7 +113,8 @@ st.markdown("""
   -webkit-backdrop-filter: blur(28px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 16px 44px rgba(0, 0, 0, .10);
 }
-.hdr h1 { color: var(--na-heading); margin: 0 0 12px; padding: 0; }
+.hdr h1 { display: flex; align-items: center; gap: 14px; color: var(--na-heading); margin: 0 0 12px; padding: 0; }
+.hdr h1 svg { display: block; width: 44px; height: auto; flex-shrink: 0; }
 .hdr p { color: #afc4bb; margin: 0; line-height: 1.6; }
 .warn, .pre {
   padding: 14px 18px;
@@ -197,7 +198,9 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 }
 
 </style>
-<div class="hdr"><h1>🧠 NeuroAssist</h1><p>Pre-operative brain tumor planning · multi-sequence MRI · lightweight distilled 3D network</p></div>
+<div class="hdr"><h1><svg width="128" height="140" viewBox="0 0 128 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M35 0C54.33 0 70 15.67 70 35C70 46.6755 69.1491 59.4891 75.8158 69.0741L88.1354 86.7865C89.2561 88.3977 91.3496 88.9349 93.2141 88.3219C95.0357 87.723 96.4307 86.1004 96.4307 84.1829V71.9976C96.4307 63.3733 89.7146 56.2646 84.2334 49.6063C80.9635 45.6343 79 40.5467 79 35C79 22.2975 89.2974 12 102 12C114.703 12 125 22.2975 125 35C125 40.2104 123.267 45.0158 120.347 48.8719C114.943 56.0068 108 63.427 108 72.3775C108 81.4476 114.928 88.9226 121.052 95.6129C125.367 100.327 128 106.606 128 113.5C128 128.136 116.136 140 101.5 140C86.8645 140 75 128.136 75 113.5C75 112.983 75.0148 112.469 75.044 111.96C75.6282 101.766 77.3773 90.3018 71.5513 81.9166L63.0602 69.6955C60.1038 65.4405 54.1897 64.7285 49.4735 66.8739C45.7331 68.5754 42.7588 72.0522 42.7588 76.1614V84.8937C42.7588 92.6171 48.3475 99.3284 51.492 106.383C52.4612 108.557 53 110.966 53 113.5C53 123.165 45.165 131 35.5 131C25.835 131 18 123.165 18 113.5C18 109.823 19.1339 106.412 21.071 103.595C25.2178 97.5667 31 91.4905 31 84.1733C31 75.9682 24.5172 69.3968 17.4248 65.2711C7.00483 59.2097 0 47.9238 0 35C0 15.67 15.67 0 35 0Z" fill="#ffffff"/>
+</svg><span>NeuroAssist</span></h1><p>Pre-operative brain tumor planning · multi-sequence MRI · lightweight distilled 3D network</p></div>
 <div class="warn">⚠️ Research prototype for demonstration only. Not a medical device; not validated for clinical decisions.</div>
 """, unsafe_allow_html=True)
 
@@ -685,7 +688,7 @@ def save_weights(files):
             continue
 
 
-st.sidebar.header("1 · Model")
+st.sidebar.header("Model")
 bundle = st.session_state.get("bundle_dir", DEFAULT_BUNDLE)
 try:
     models = load_models(bundle)
@@ -711,7 +714,7 @@ else:
             v = models["info"][k].get("val")
             st.caption(f"**{label}:** " + (f"val mean Dice {v['mean']:.3f}" if v else "loaded"))
 
-st.sidebar.header("2 · Case")
+st.sidebar.header("Case")
 cached = sorted(Path(bundle).glob("cases/*_img.npy"))
 sources = [SRC_UPLOAD] + ([SRC_CACHED] if cached and models is not None else []) + [SRC_PHANTOM]
 default = SRC_CACHED if SRC_CACHED in sources else (SRC_UPLOAD if models is not None else SRC_PHANTOM)

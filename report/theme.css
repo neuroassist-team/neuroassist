@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
   --teal: #2dd4bf;
-  --bg: #090c0f;
+  --bg: #0b1517;
   --card: rgba(31, 36, 41, .48);
   --ink: #ccd2d5;
   --mut: #949fa5;
@@ -29,15 +29,8 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-wrap: break-word;
 }
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(ellipse at 5% 8%, rgba(45, 212, 191, .10), transparent 48%),
-              radial-gradient(ellipse at 95% 70%, rgba(45, 212, 191, .065), transparent 45%);
-}
+body::before { display: none; }
+
 main { width: 100%; max-width: none; margin: 0; padding: 104px var(--gutter) 0; }
 .skip-link { position: fixed; top: -100px; left: var(--gutter); z-index: 101; padding: 10px 18px; border-radius: var(--radius); background: var(--bg); }
 .skip-link:focus { top: 20px; }
@@ -78,7 +71,7 @@ a { color: var(--teal); text-underline-offset: .2em; }
 a:hover { color: #9ce4d6; }
 :focus-visible { outline: 2px solid var(--teal); outline-offset: 5px; }
 .section, .screen { min-height: calc(100svh - 48px); padding: clamp(36px, 5vh, 64px) 0; display: flex; flex-direction: column; justify-content: center; }
-.section + .section { border-top: 1px solid var(--line); }
+.section + .section { border-top: 0; }
 .section > :last-child, .screen > :last-child { margin-bottom: 0; }
 .hero {
   min-height: calc(100svh - 128px);
@@ -93,7 +86,7 @@ a:hover { color: #9ce4d6; }
 .hero p { color: var(--ink); font-size: var(--type-lead); line-height: 1.55; max-width: 38ch; }
 .brand-logo { width: clamp(36px, 4vw, 60px); height: auto; flex: 0 0 auto; }
 .hero-mark { min-height: 300px; display: grid; place-items: center; position: relative; }
-.hero-mark::before { content: ""; position: absolute; width: 85%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(45, 212, 191, .13), transparent 70%); filter: blur(24px); }
+.hero-mark::before { display: none; }
 .hero-mark img { position: relative; width: clamp(150px, 22vw, 340px); height: auto; opacity: .94; }
 .tag { display: inline-block; background: rgba(45, 212, 191, .075); border: 1px solid rgba(45, 212, 191, .15); color: #99bfb5; border-radius: var(--radius); padding: 5px 12px; font-size: 11px; letter-spacing: .035em; margin: 0 6px 6px 0; }
 .warn { margin-top: 32px; background: rgba(45, 212, 191, .055); border: 1px solid var(--line); color: var(--mut); border-radius: var(--radius); padding: 14px 18px; font-size: 12px; max-width: 570px; }
@@ -264,7 +257,7 @@ footer { color: var(--mut); font-size: 12px; margin: 0; border-top: 1px solid va
 .image-band figcaption { color: var(--band-muted); }
 .image-band img { display: block; width: 100%; height: auto; object-fit: contain; border-radius: 0; }
 .image-band .figure-grid > :last-child:nth-child(odd) { max-width: none; }
-.qualitative-screen.image-band { margin-top: 40px; }
+.qualitative-screen.image-band { margin-top: 0; }
 @media (max-width: 720px) {
   .architecture-screen .diagram-card + .diagram-card { min-height: auto; }
   .image-band, .architecture-screen .image-band { padding-block: 40px; }
@@ -294,7 +287,21 @@ footer { color: var(--mut); font-size: 12px; margin: 0; border-top: 1px solid va
 #size-comparison h3 { color: #205d50; }
 #size-comparison .why, #size-comparison svg text { color: #385d53; fill: #385d53; }
 #size-comparison #bars rect:nth-of-type(n+6) { fill: #3e9584; }
-.math-screen { --page-tone: #142c2b; }
+/* Varied light behind translucent panels makes the blur visible. */
+.math-screen {
+  --page-tone: #142c2b;
+  --mut: #b8ccc3;
+  background: radial-gradient(ellipse at 8% 25%, rgba(45, 212, 191, .24), transparent 48%),
+              radial-gradient(ellipse at 92% 65%, rgba(136, 215, 190, .18), transparent 44%),
+              var(--page-tone);
+}
+.math-screen .math-grid > .card {
+  background: linear-gradient(125deg, rgba(220, 255, 244, .10), rgba(13, 38, 33, .22));
+  border: 1px solid rgba(205, 245, 230, .19);
+  backdrop-filter: blur(28px) saturate(130%);
+  -webkit-backdrop-filter: blur(28px) saturate(130%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 14px 40px rgba(0, 0, 0, .10);
+}
 .math-screen .math-grid > .card { min-height: 0; height: 100%; }
 .results-overview { --page-tone: #102326; }
 .comparison-screen { --page-tone: #163331; }
@@ -305,11 +312,11 @@ footer { color: var(--mut); font-size: 12px; margin: 0; border-top: 1px solid va
 .interactive-screen .temperature-block { background: #183d38; }
 .interactive-screen .margin-block { background: #24534a; }
 details.card { padding-block: clamp(28px, 4vw, 60px); }
-#run-1 { --page-tone: #122d2b; }
-#run-2 { --page-tone: #193834; }
-#run-3 { --page-tone: #153133; }
-#run-4 { --page-tone: #1c403a; }
-#run-5 { --page-tone: #173830; }
+#run-1 { --page-tone: #ffffff; }
+#run-2 { --page-tone: #ffffff; }
+#run-3 { --page-tone: #ffffff; }
+#run-4 { --page-tone: #e1f0e9; }
+#run-5 { --page-tone: #ffffff; }
 /* Every raster chart with a white canvas gets a continuous white surface. */
 details > .figure-grid {
   width: calc(100% + var(--gutter) * 2);
@@ -340,3 +347,19 @@ details > .figure-grid figcaption { color: #596a70; }
 .margin-block svg circle:nth-of-type(2) { stroke: #8fcbb8; }
 .margin-block svg text[fill="#73ad98"] { fill: #8fcbb8; }
 .margin-block svg text[fill="#949fa5"] { fill: #c2d6ce; }
+
+/* Chapter colors provide the separation; no horizontal outline at joins. */
+.hero, .section, .screen, .architecture-screen .diagram-card + .diagram-card, footer { border: 0; }
+.app-section .card { border-top: 0; }
+/* White chart runs stay white from their summary through the last caption. */
+details.card {
+  --ink: #293f39;
+  --heading: #244b42;
+  --mut: #596f66;
+  --teal: #0f766e;
+  --amb: #0f766e;
+  color: var(--ink);
+}
+@supports not (backdrop-filter: blur(20px)) {
+  .math-screen .math-grid > .card { background: rgba(33, 64, 55, .88); }
+}

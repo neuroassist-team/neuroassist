@@ -44,7 +44,7 @@ main { width: 100%; max-width: none; margin: 0; padding: 104px var(--gutter) 0; 
   --nav-link: #bccfc6;
   --nav-active: #b3f0df;
   --nav-hover: rgba(157, 225, 202, .10);
-  --nav-logo: rgba(101, 157, 137, .25);
+  --nav-logo-filter: invert(0);
   --nav-solid: #182c29;
   --nav-saturation: 75%;
   --nav-highlight: rgba(255, 255, 255, .12);
@@ -77,7 +77,7 @@ main { width: 100%; max-width: none; margin: 0; padding: 104px var(--gutter) 0; 
   --nav-link: #254d43;
   --nav-active: #08564a;
   --nav-hover: rgba(15, 118, 110, .10);
-  --nav-logo: #215b4e;
+  --nav-logo-filter: invert(1);
   --nav-solid: #dce7e2;
   --nav-saturation: 35%;
   --nav-highlight: rgba(255, 255, 255, .45);
@@ -85,7 +85,7 @@ main { width: 100%; max-width: none; margin: 0; padding: 104px var(--gutter) 0; 
 }
 .site-nav a { text-decoration: none; transition: color .55s ease, background-color .55s ease; }
 .nav-brand { display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; color: var(--nav-ink); font-size: 16px; font-weight: 600; letter-spacing: -.035em; }
-.nav-brand img { width: 32px; height: auto; padding: 5px; border-radius: 9px; background: var(--nav-logo); transition: background-color .55s ease; }
+.nav-brand img { width: 32px; height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; filter: var(--nav-logo-filter); transition: filter .55s ease; }
 .nav-links { display: flex; align-items: center; gap: clamp(2px, .5vw, 10px); overflow-x: auto; scrollbar-width: thin; }
 .nav-links a { flex: 0 0 auto; border-radius: var(--radius); padding: 9px 12px; font-size: 13px; color: var(--nav-link); }
 .nav-links a:hover, .nav-links a:focus-visible { color: var(--nav-active); background: var(--nav-hover); }

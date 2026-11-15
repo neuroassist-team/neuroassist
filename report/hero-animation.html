@@ -757,6 +757,7 @@ let points = [], edges = [], pointCount = 0, lineCount = 0, sparkCount = 0;
 let elapsed = 0, gather = 0, paused = false, spinning = true, showConnections = true, speed = 1;
 let spinAngle = -1.96, yaw = 0, pitch = 0.20, zoom = 1.35, drag = null, lastFrame = 0;
 let canvasElement, ui = {}, ready = false, reducedMotion = false;
+let centerY = -.10, targetYaw = yaw, targetPitch = pitch;
 let lesionModel, lesionStart = 0, lesionCount = 0, lesionStats = {}, tissueStats = {};
 let tumorBeat = 0; const edgeNoise = new Float32Array(3);
 
@@ -871,11 +872,12 @@ function makeBrain() {
 }
 
 const transformGLSL=`
-uniform float uTime,uGather,uYaw,uPitch,uAspect,uZoom,uDpr,uTumorBeat;
+uniform float uTime,uGather,uYaw,uPitch,uAspect,uZoom,uDpr,uTumorBeat,uCenterY;
 uniform vec3 uEdgeNoise;
 vec3 rotateY(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(c*p.x+s*p.z,p.y,-s*p.x+c*p.z);}
-vec3 view(vec3 p){p=rotateY(p,uYaw);float c=cos(uPitch),s=sin(uPitch);return vec3(p.x,c*p.y-s*p.z,s*p.y+c*p.z);}
-vec4 project(vec3 p){float d=5.6-p.z;return vec4(p.x*3.0*uZoom/uAspect+(uAspect>1.1?.38:0.0)*d,p.y*3.0*uZoom+.035*d,0.0,d);}
+// Rotate around the visual mass of the brain, keeping it on the title baseline.
+vec3 view(vec3 p){p-=vec3(0.0,.26,0.0);p=rotateY(p,uYaw);float c=cos(uPitch),s=sin(uPitch);return vec3(p.x,c*p.y-s*p.z,s*p.y+c*p.z);}
+vec4 project(vec3 p){float d=5.6-p.z;return vec4(p.x*3.0*uZoom/uAspect+(uAspect>1.1?.38:0.0)*d,p.y*3.0*uZoom+uCenterY*d,0.0,d);}
 vec3 organicTarget(vec3 p,vec3 local,float seed){
  if(local.x>.00001){
   vec3 rel=p-vec3(${CONFIG.tumorCenter.map(v=>v.toFixed(8)).join(',')});
@@ -938,7 +940,7 @@ function program(vs,fs,spark=false){
  function compile(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
  const p=gl.createProgram(),v=compile(gl.VERTEX_SHADER,vs),f=compile(gl.FRAGMENT_SHADER,fs);gl.attachShader(p,v);gl.attachShader(p,f);gl.linkProgram(p);gl.deleteShader(v);gl.deleteShader(f);
  if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p));
- const uniforms={};for(const name of ['uTime','uGather','uYaw','uPitch','uAspect','uZoom','uDpr','uLines','uTumorBeat','uEdgeNoise'])uniforms[name]=gl.getUniformLocation(p,name);
+ const uniforms={};for(const name of ['uTime','uGather','uYaw','uPitch','uAspect','uZoom','uDpr','uLines','uTumorBeat','uEdgeNoise','uCenterY'])uniforms[name]=gl.getUniformLocation(p,name);
  const layout=spark?[['aStart',3,0],['aEnd',3,3],['aSeed',4,6],['aColorStart',3,10],['aColorEnd',3,13],['aLocalStart',3,16],['aLocalEnd',3,19]]:[['aTarget',3,0],['aScatter',3,3],['aMeta',4,6],['aColor',3,10],['aLocal',3,13]];
  const attributes=layout.map(([name,size,offset])=>({location:gl.getAttribLocation(p,name),size,offset:offset*4})).filter(a=>a.location>=0);
  return {p,uniforms,attributes,stride:(spark?22:16)*4};
@@ -948,7 +950,7 @@ function use(program,buffer){
  for(const a of program.attributes){gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,program.stride,a.offset);}
  const u=program.uniforms;
  gl.uniform1f(u.uTime,elapsed);gl.uniform1f(u.uGather,gather);gl.uniform1f(u.uYaw,spinAngle+yaw);gl.uniform1f(u.uPitch,pitch);gl.uniform1f(u.uAspect,width/height);gl.uniform1f(u.uZoom,zoom*Math.min(1,width/height*1.2));gl.uniform1f(u.uDpr,pixelDensity());gl.uniform1f(u.uLines,program===lineProgram?1:0);
- gl.uniform1f(u.uTumorBeat,tumorBeat);gl.uniform3f(u.uEdgeNoise,edgeNoise[0],edgeNoise[1],edgeNoise[2]);
+ gl.uniform1f(u.uCenterY,centerY);gl.uniform1f(u.uTumorBeat,tumorBeat);gl.uniform3f(u.uEdgeNoise,edgeNoise[0],edgeNoise[1],edgeNoise[2]);
 }
 
 function setup(){
@@ -968,7 +970,9 @@ function setup(){
 function draw(){
   if(!ready)return;
   const now=performance.now(),dt=Math.min((now-lastFrame)/1000,.05);lastFrame=now;
-  if(!paused && !document.hidden){elapsed+=dt*speed;gather=Math.min(1,gather+dt*speed/CONFIG.gatherSeconds);if(spinning)spinAngle+=dt*speed*CONFIG.rotationSpeed;}
+  if(!paused && !document.hidden){elapsed+=dt*speed;gather=Math.min(1,gather+dt*speed/CONFIG.gatherSeconds);if(spinning&&!drag)spinAngle+=dt*speed*CONFIG.rotationSpeed;}
+  const easing=1-Math.exp(-18*dt);
+  yaw+=(targetYaw-yaw)*easing;pitch+=(targetPitch-pitch)*easing;
   const dynamics=lesionModel.dynamics(elapsed);tumorBeat=dynamics.beat;edgeNoise.set(dynamics.edge);
   gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);
   gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
@@ -982,7 +986,7 @@ function draw(){
 function updateUI(){const p=Math.round(gather*100);ui.gather.value=String(Math.round(gather*1000));ui.gather.style.setProperty('--progress',p+'%');ui.formation.innerHTML=String(p).padStart(2,'0')+'<span>%</span>';const stage=gather<.2?0:gather<.96?1:2;ui.phase.textContent=['离散 · DIFFUSION','聚拢 · CONVERGENCE','涌现 · EMERGENCE'][stage];ui.bars.forEach((b,i)=>b.classList.toggle('active',i<=stage));}
 function updatePlay(){ui.play.textContent=paused?'▶':'Ⅱ';ui.play.setAttribute('aria-label',paused?'播放动画':'暂停动画');}
 function togglePlay(){paused=!paused;updatePlay();}
-function replay(){gather=0;elapsed=0;spinAngle=-1.96;yaw=0;pitch=.20;paused=false;updatePlay();updateUI();}
+function replay(){gather=0;elapsed=0;spinAngle=-1.96;yaw=targetYaw=0;pitch=targetPitch=.20;paused=false;updatePlay();updateUI();}
 function bindControls(){
   ui.play.addEventListener('click',togglePlay);
   document.getElementById('replay').addEventListener('click',replay);
@@ -993,12 +997,28 @@ function bindControls(){
   document.getElementById('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch(e){console.info('Fullscreen unavailable',e);}});
   document.addEventListener('fullscreenchange',()=>document.getElementById('fullscreen').setAttribute('aria-label',document.fullscreenElement?'退出全屏':'进入全屏'));
   document.addEventListener('keydown',e=>{if(['INPUT','SELECT','BUTTON','A'].includes(document.activeElement.tagName))return;if(e.code==='Space'){e.preventDefault();togglePlay();}if(e.key.toLowerCase()==='r')replay();});
-  canvasElement.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,yaw,pitch};canvasElement.setPointerCapture(e.pointerId);});
-  canvasElement.addEventListener('pointermove',e=>{if(!drag)return;yaw=drag.yaw+(e.clientX-drag.x)*.006;pitch=Math.max(-1.15,Math.min(1.15,drag.pitch+(e.clientY-drag.y)*.006));});
-  const release=()=>{drag=null;};canvasElement.addEventListener('pointerup',release);canvasElement.addEventListener('pointercancel',release);
+  canvasElement.addEventListener('pointerdown',e=>{if(e.button!==0)return;startDrag(e.clientX,e.clientY);canvasElement.setPointerCapture(e.pointerId);});
+  canvasElement.addEventListener('pointermove',e=>moveDrag(e.clientX,e.clientY));
+  const release=()=>{drag=null;};for(const event of ['pointerup','pointercancel','lostpointercapture'])canvasElement.addEventListener(event,release);
   canvasElement.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.55,Math.min(1.9,zoom*Math.exp(-e.deltaY*.001)));},{passive:false});
   canvasElement.addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;fail(new Error('图形上下文已中断，请刷新页面重新加载。'));});
 }
+function startDrag(x,y){drag={x,y,yaw:targetYaw,pitch:targetPitch};}
+function moveDrag(x,y){
+  if(!drag)return;
+  targetYaw=drag.yaw+(x-drag.x)*.006;
+  targetPitch=Math.max(-1.15,Math.min(1.15,drag.pitch+(y-drag.y)*.006));
+}
+window.addEventListener('message',event=>{
+  if(event.source!==window.parent||event.data?.type!=='neuroassist-hero')return;
+  const data=event.data;
+  if(data.action==='align'&&Number.isFinite(data.centerY))centerY=Math.max(-1,Math.min(1,data.centerY));
+  if((data.action==='start'||data.action==='move')&&Number.isFinite(data.x)&&Number.isFinite(data.y)){
+    if(data.action==='start')startDrag(data.x,data.y);else moveDrag(data.x,data.y);
+  }
+  if(data.action==='end')drag=null;
+});
+window.parent.postMessage({type:'neuroassist-hero-ready'},'*');
 function windowResized(){resizeCanvas(window.innerWidth,window.innerHeight);}
 function fail(e){console.error(e);const el=document.getElementById('error');el.hidden=false;el.textContent='无法启动 WebGL 动画。请在启用硬件加速的现代浏览器中打开，或刷新重试。 '+e.message;}
 window.addEventListener('load',()=>{if(typeof p5==='undefined')fail(new Error('p5.js 未加载，请确认 vendor/p5.min.js 文件存在。'));});

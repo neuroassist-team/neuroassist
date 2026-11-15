@@ -11,7 +11,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}]})"></script>
-<link rel="stylesheet" href="theme.css?v=6dfdf4ed234c">
+<link rel="stylesheet" href="theme.css?v=brain-drag-20261115">
 </head>
 <body id="top">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -37,7 +37,7 @@
 <p>A lightweight AI assistant that segments brain tumors from MRI fast enough for interactive surgical planning.</p>
 <div class="warn">Research prototype. Not a medical device and not for clinical use.</div>
 </div>
-<div class="hero-mark" aria-hidden="true"><iframe class="hero-animation" src="hero-animation.html?v=c866295e10fc" title="Animated particle brain" tabindex="-1" sandbox="allow-scripts" scrolling="no"></iframe></div>
+<div class="hero-mark" aria-hidden="true"><iframe class="hero-animation" src="hero-animation.html?v=brain-drag-20261115" title="Animated particle brain" tabindex="-1" sandbox="allow-scripts" scrolling="no"></iframe></div>
 </header>
 
 <section class="section problem" id="section-1" aria-labelledby="heading-1">
@@ -333,6 +333,71 @@ document.getElementById('headline').innerHTML='<b>Run 1 headline:</b> '+(b.param
   document.addEventListener('toggle', scheduleThemeUpdate, true);
   if ('ResizeObserver' in window) new ResizeObserver(scheduleThemeUpdate).observe(document.querySelector('main'));
   updateNavigationTheme();
+})();
+</script>
+<script>
+/* Keep the scene full-bleed; align its centre to the title and relay drags
+   from the cover so the transparent iframe never traps page scrolling. */
+(function () {
+  const hero = document.querySelector('.hero');
+  const title = hero.querySelector('h1');
+  const scene = hero.querySelector('.hero-animation');
+  let pointerId = null;
+  let pending = false;
+  function send(message) {
+    // The sandboxed scene has an opaque origin. The receiver checks event.source.
+    scene.contentWindow.postMessage({ type: 'neuroassist-hero', ...message }, '*');
+  }
+  function alignScene() {
+    pending = false;
+    const heading = title.getBoundingClientRect();
+    const canvas = scene.getBoundingClientRect();
+    if (canvas.height) send({ action: 'align', centerY: 1 - 2 *
+      ((heading.top + heading.height / 2 - canvas.top) / canvas.height) });
+  }
+  function scheduleAlignment() {
+    if (!pending) { pending = true; requestAnimationFrame(alignScene); }
+  }
+  function finishDrag(event) {
+    if (event.pointerId !== pointerId) return;
+    pointerId = null;
+    delete hero.dataset.dragging;
+    send({ action: 'end' });
+  }
+  hero.addEventListener('pointerdown', event => {
+    if (pointerId !== null || !event.isPrimary || event.button !== 0 ||
+        event.target.closest('.hero-copy, a, button, input, select, textarea')) return;
+    pointerId = event.pointerId;
+    hero.dataset.dragging = '';
+    hero.setPointerCapture(pointerId);
+    send({ action: 'start', x: event.clientX, y: event.clientY });
+    if (event.pointerType === 'mouse') event.preventDefault();
+  });
+  hero.addEventListener('pointermove', event => {
+    if (event.pointerId === pointerId) send({ action: 'move', x: event.clientX, y: event.clientY });
+  });
+  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    hero.addEventListener(event, finishDrag);
+  }
+  window.addEventListener('blur', () => {
+    if (pointerId !== null) {
+      const captured = pointerId;
+      finishDrag({ pointerId: captured });
+      if (hero.hasPointerCapture(captured)) hero.releasePointerCapture(captured);
+    }
+  });
+  window.addEventListener('message', event => {
+    if (event.source === scene.contentWindow && event.data?.type === 'neuroassist-hero-ready') scheduleAlignment();
+  });
+  scene.addEventListener('load', scheduleAlignment);
+  window.addEventListener('resize', scheduleAlignment);
+  window.addEventListener('pageshow', scheduleAlignment);
+  if ('ResizeObserver' in window) {
+    const observer = new ResizeObserver(scheduleAlignment);
+    [hero, title, scene].forEach(element => observer.observe(element));
+  }
+  document.fonts?.ready.then(scheduleAlignment);
+  scheduleAlignment();
 })();
 </script>
 </body></html>

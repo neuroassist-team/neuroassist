@@ -28,16 +28,13 @@ main>:not(#canvas-host):not(.cover-layer):not(#error){display:none!important}
 .cover-caption{position:absolute;left:24px;right:24px;bottom:clamp(28px,5vh,56px);text-align:center;pointer-events:none}
 .cover-caption p{margin:0;color:#b6c5c3;font-size:clamp(14px,1.25vw,17px);letter-spacing:0;line-height:1.6}
 .cover-caption .instruction{margin-top:10px;color:#819a94;font-size:12px;letter-spacing:.015em}
-#tumor-target{position:absolute;z-index:1;width:44px;height:44px;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;background:transparent;border:0;padding:0;opacity:0}
-#tumor-target:focus-visible{opacity:1;outline:2px solid #e9cb76;outline-offset:8px;box-shadow:0 0 32px #e9cb7633}
-.start-wrap{position:absolute;z-index:2;opacity:0;transform:translate(-50%,12px);transition:opacity 1.15s ease,transform 1.15s cubic-bezier(.2,.7,.2,1);pointer-events:none}
-.start-wrap.revealed{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.start-wrap{position:absolute;z-index:2;left:50%;bottom:clamp(112px,13vh,152px);transform:translateX(-50%)}
 #start{min-width:132px;min-height:48px;padding:13px 30px;background:linear-gradient(140deg,#23413b99,#112a25cc);border:1px solid #9ce5d73d;border-radius:24px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);color:#d9e8e3;font-size:16px;letter-spacing:.04em;box-shadow:inset 0 1px 0 #ffffff12,0 8px 32px #0002;transition:background .25s,box-shadow .25s}
 #start:hover{background:#2dd4bf22;box-shadow:inset 0 1px 0 #ffffff18,0 0 30px #2dd4bf18;color:#ecf9f4}
 #start:focus-visible{outline:2px solid #2dd4bf;outline-offset:5px}
 [hidden]{display:none!important}
 #error{z-index:5}
-@media(prefers-reduced-motion:reduce){.start-wrap{transition:opacity .15s}.start-wrap.revealed{transform:translate(-50%,0)}}
+
 </style>
 </head>
 <body>
@@ -82,9 +79,8 @@ main>:not(#canvas-host):not(.cover-layer):not(#error){display:none!important}
 <div class="cover-layer cover-brand"><svg width="128" height="140" viewBox="0 0 128 140" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M35 0C54.33 0 70 15.67 70 35C70 46.6755 69.1491 59.4891 75.8158 69.0741L88.1354 86.7865C89.2561 88.3977 91.3496 88.9349 93.2141 88.3219C95.0357 87.723 96.4307 86.1004 96.4307 84.1829V71.9976C96.4307 63.3733 89.7146 56.2646 84.2334 49.6063C80.9635 45.6343 79 40.5467 79 35C79 22.2975 89.2974 12 102 12C114.703 12 125 22.2975 125 35C125 40.2104 123.267 45.0158 120.347 48.8719C114.943 56.0068 108 63.427 108 72.3775C108 81.4476 114.928 88.9226 121.052 95.6129C125.367 100.327 128 106.606 128 113.5C128 128.136 116.136 140 101.5 140C86.8645 140 75 128.136 75 113.5C75 112.983 75.0148 112.469 75.044 111.96C75.6282 101.766 77.3773 90.3018 71.5513 81.9166L63.0602 69.6955C60.1038 65.4405 54.1897 64.7285 49.4735 66.8739C45.7331 68.5754 42.7588 72.0522 42.7588 76.1614V84.8937C42.7588 92.6171 48.3475 99.3284 51.492 106.383C52.4612 108.557 53 110.966 53 113.5C53 123.165 45.165 131 35.5 131C25.835 131 18 123.165 18 113.5C18 109.823 19.1339 106.412 21.071 103.595C25.2178 97.5667 31 91.4905 31 84.1733C31 75.9682 24.5172 69.3968 17.4248 65.2711C7.00483 59.2097 0 47.9238 0 35C0 15.67 15.67 0 35 0Z" fill="#ffffff"/>
 </svg><span>NeuroAssist</span></div>
-    <div class="cover-layer cover-caption"><p>Pre-operative brain tumor planning</p><p class="instruction" id="cover-hint" aria-live="polite">Drag to rotate · Select the yellow tumor to begin</p></div>
-    <button class="cover-layer" id="tumor-target" aria-label="Select yellow tumor to reveal Start" disabled></button>
-    <div class="cover-layer start-wrap" id="start-wrap" hidden><button id="start" type="button">Start</button></div>
+    <div class="cover-layer cover-caption"><p>Pre-operative brain tumor planning</p><p class="instruction" id="cover-hint" aria-live="polite">Drag to rotate</p></div>
+    <div class="cover-layer start-wrap" id="start-wrap"><button id="start" type="button">Start</button></div>
     <div id="error" role="alert" hidden></div>
   </main>
 <script>
@@ -778,7 +774,7 @@ const CONFIG = { particles: 16000, gatherSeconds: 11, rotationSpeed: 0.115, seed
 let gl, pointProgram, lineProgram, pointBuffer, lineBuffer, sparkBuffer;
 let points = [], edges = [], pointCount = 0, lineCount = 0, sparkCount = 0;
 let elapsed = 0, gather = 0, paused = false, spinning = true, showConnections = true, speed = 1;
-let spinAngle = -1.96, yaw = 0, pitch = 0.20, zoom = 1.35, drag = null, lastFrame = 0;
+let spinAngle = -1.96, yaw = 0, pitch = 0.20, zoom = 1.18, drag = null, lastFrame = 0;
 let canvasElement, ui = {}, ready = false, reducedMotion = false;
 let lesionModel, lesionStart = 0, lesionCount = 0, lesionStats = {}, tissueStats = {};
 let tumorBeat = 0; const edgeNoise = new Float32Array(3);
@@ -1000,7 +996,6 @@ function draw(){
   use(pointProgram,pointBuffer);gl.drawArrays(gl.POINTS,0,pointCount);
   if(showConnections){use(sparkProgram,sparkBuffer,true);gl.drawArrays(gl.POINTS,0,sparkCount);}
   gl.depthMask(true);
-  updateCoverTarget();
   if(frameCount%4===0)updateUI();
 }
 function updateUI(){const p=Math.round(gather*100);ui.gather.value=String(Math.round(gather*1000));ui.gather.style.setProperty('--progress',p+'%');ui.formation.innerHTML=String(p).padStart(2,'0')+'<span>%</span>';const stage=gather<.2?0:gather<.96?1:2;ui.phase.textContent=['离散 · DIFFUSION','聚拢 · CONVERGENCE','涌现 · EMERGENCE'][stage];ui.bars.forEach((b,i)=>b.classList.toggle('active',i<=stage));}
@@ -1031,15 +1026,13 @@ function bindControls(){
         pitch=Math.max(-1.15,Math.min(1.15,drag.pitch+(e.clientY-drag.y)*.006));
       }
       canvasElement.style.cursor=drag.moved?'grabbing':'grab';
-    }else canvasElement.style.cursor=hitTumor(e.clientX,e.clientY)?'pointer':'grab';
+    }else canvasElement.style.cursor='grab';
   });
   canvasElement.addEventListener('pointerup',e=>{
     if(!drag || drag.id!==e.pointerId)return;
-    const click=!drag.moved && Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<=6;
     drag=null;
     if(canvasElement.hasPointerCapture(e.pointerId))canvasElement.releasePointerCapture(e.pointerId);
     canvasElement.style.cursor='grab';
-    if(click && hitTumor(e.clientX,e.clientY))revealStart();
   });
   canvasElement.addEventListener('pointercancel',()=>{drag=null;canvasElement.style.cursor='grab';});
   canvasElement.addEventListener('lostpointercapture',()=>{drag=null;});
@@ -1047,75 +1040,12 @@ function bindControls(){
   canvasElement.addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;fail(new Error('图形上下文已中断，请刷新页面重新加载。'));});
 }
 function windowResized(){resizeCanvas(window.innerWidth,window.innerHeight);}
-function fail(e){console.error(e);const el=document.getElementById('error');el.hidden=false;el.textContent='The interactive preview is unavailable in this browser. You can still open the planning app.';revealStart();}
+function fail(e){console.error(e);const el=document.getElementById('error');el.hidden=false;el.textContent='The interactive preview is unavailable in this browser. You can still open the planning app.';}
 window.addEventListener('load',()=>{if(typeof p5==='undefined')fail(new Error('p5.js 未加载，请确认 vendor/p5.min.js 文件存在。'));});
 
-
-// Cover interaction only. The report's particle generation and render pipeline stay intact.
-let yellowParticles = null, startRevealed = false, entering = false;
-const startWrap = document.getElementById('start-wrap');
-const targetButton = document.getElementById('tumor-target');
-const startButton = document.getElementById('start');
-const fract = x => x - Math.floor(x);
-function projectParticle(point) {
-  let p = point.target.slice(), local = point.local, seed = point.meta[3];
-  if (local[0] > .00001) {
-    const rel = p.map((v,k) => v - CONFIG.tumorCenter[k]);
-    p = p.map((v,k) => v + rel[k] * (.029 * tumorBeat * local[0]));
-    if (local[1] > .00001) {
-      const dir = [7.137,13.931,27.417].map(v => fract(seed * v) - .5);
-      const drift = dir.reduce((sum,v,k) => sum + edgeNoise[k]*v,0)*1.5 + .23*Math.sin(elapsed*.83+seed*40);
-      p = p.map((v,k) => v + dir[k]*(local[1]*drift*2));
-    }
-  }
-  let g = Math.max(0,Math.min(1,(gather-point.meta[0]*.16)/.84));
-  g = g*g*g*(g*(g*6-15)+10);
-  const swirl = (1-g)*(g*8.2+elapsed*.055+point.meta[0]*.45);
-  const c = Math.cos(swirl), s = Math.sin(swirl), a = point.scatter;
-  const cloud = [c*a[0]+s*a[2],a[1]+Math.sin(g*Math.PI*2+point.meta[0]*Math.PI*2)*g*(1-g)*1.2,-s*a[0]+c*a[2]];
-  p = p.map((v,k) => cloud[k]+(v-cloud[k])*g);
-  const cy = Math.cos(spinAngle+yaw), sy = Math.sin(spinAngle+yaw);
-  const x = cy*p[0]+sy*p[2], y = p[1], z = -sy*p[0]+cy*p[2];
-  const cp = Math.cos(pitch), sp = Math.sin(pitch), vy = cp*y-sp*z, vz = sp*y+cp*z;
-  const aspect = width/height, scale = zoom*Math.min(1,aspect*1.2), d = 5.6-vz;
-  return {x:(x*3*scale/aspect/d+1)*width/2,y:(1-(vy*3*scale/d+.035))*height/2};
-}
-function coreParticles() {
-  if (!yellowParticles) yellowParticles = points.slice(lesionStart,lesionStart+lesionCount).filter(p => p.color[0]>.9 && p.color[1]>.70);
-  return yellowParticles;
-}
-function hitTumor(x,y) {
-  if (!ready || gather < .98) return false;
-  const rect = canvasElement.getBoundingClientRect();
-  x = (x-rect.left)*width/rect.width; y = (y-rect.top)*height/rect.height;
-  return coreParticles().some(p => {const screen=projectParticle(p);return Math.hypot(screen.x-x,screen.y-y)<=12;});
-}
-function updateCoverTarget() {
-  if (!ready || gather < .98) return;
-  targetButton.disabled = startRevealed;
-  const core = coreParticles();
-  if (!core.length) return;
-  const center = core.reduce((sum,p) => {const q=projectParticle(p);sum.x+=q.x;sum.y+=q.y;return sum;},{x:0,y:0});
-  center.x/=core.length; center.y/=core.length;
-  targetButton.style.left=center.x+'px';targetButton.style.top=center.y+'px';
-  if (startRevealed) {
-    startWrap.style.left=Math.max(84,Math.min(width-84,center.x))+'px';
-    startWrap.style.top=Math.max(100,Math.min(height-180,center.y+48))+'px';
-  }
-}
-function revealStart() {
-  if (startRevealed) return;
-  startRevealed=true;spinning=false;
-  targetButton.disabled=true;
-  document.getElementById('cover-hint').textContent='Ready to explore';
-  startWrap.hidden=false;
-  if (!ready) { startWrap.style.left='50%';startWrap.style.top='65%'; }
-  else updateCoverTarget();
-  requestAnimationFrame(() => startWrap.classList.add('revealed'));
-  // Keyboard users continue from the selected lesion to the newly revealed action.
-  if (document.activeElement===targetButton) startButton.focus({preventScroll:true});
-}
-targetButton.addEventListener('click',revealStart);
+// The Start action is always visible below the particle animation.
+let entering = false;
+const startButton = document.getElementById("start");
 function sendComponentMessage(type,fields={}) {
   window.parent.postMessage({isStreamlitMessage:true,type,...fields},'*');
 }

@@ -31,7 +31,16 @@ if st.query_params.get("view") != "app":
     cover_directory = Path(tempfile.gettempdir()) / "neuroassist-cover-component"
     cover_directory.mkdir(parents=True, exist_ok=True)
     cover_index = cover_directory / "index.html"
-    cover_content = cover_source.read_text(encoding="utf-8")
+    try:
+        cover_content = cover_source.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        # Git checkouts can update the watched Python entrypoint before the HTML asset.
+        # Keep the planning app reachable while a cover asset is being refreshed.
+        st.title("NeuroAssist")
+        if st.button("Start", type="primary", key="cover_fallback_start"):
+            st.query_params["view"] = "app"
+            st.rerun()
+        st.stop()
     if not cover_index.exists() or cover_index.read_text(encoding="utf-8") != cover_content:
         cover_index.write_text(cover_content, encoding="utf-8")
     st.markdown("""<style>

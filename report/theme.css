@@ -404,7 +404,13 @@ details.card + details.card { border-top: 1px solid var(--amb); }
 
 @media (prefers-reduced-motion: reduce) { .site-nav, .site-nav a, .site-nav .nav-brand img { transition: none; } }
 
-/* The cover animation occupies the original right-hand logo area only. */
-.hero-animation-space { width: clamp(150px, 22vw, 340px); aspect-ratio: 128 / 140; }
+/* A full-bleed scene, with no visible rectangular canvas inside the cover. */
+.hero { position: relative; isolation: isolate; }
+.hero-copy { position: relative; z-index: 2; }
+.hero .hero-mark { position: absolute; inset: -104px 0 0; z-index: 0; min-height: 0; display: block; overflow: hidden; pointer-events: none; }
 .hero-mark .hero-animation { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; }
-@media (max-width: 720px) { .hero-animation-space { width: 140px; } }
+.hero::after { content: ""; position: absolute; inset: -104px 0 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(11,21,23,.92) 0%, rgba(11,21,23,.72) 32%, rgba(11,21,23,.10) 67%, rgba(11,21,23,0) 100%), linear-gradient(0deg, #0b1517 0%, rgba(11,21,23,0) 17%); }
+@media (max-width: 720px) {
+  .hero .hero-mark, .hero::after { top: -132px; }
+  .hero::after { background: linear-gradient(90deg, rgba(11,21,23,.70), rgba(11,21,23,.30)), linear-gradient(0deg, #0b1517 0%, rgba(11,21,23,0) 22%); }
+}

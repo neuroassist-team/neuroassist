@@ -875,7 +875,7 @@ uniform float uTime,uGather,uYaw,uPitch,uAspect,uZoom,uDpr,uTumorBeat;
 uniform vec3 uEdgeNoise;
 vec3 rotateY(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(c*p.x+s*p.z,p.y,-s*p.x+c*p.z);}
 vec3 view(vec3 p){p=rotateY(p,uYaw);float c=cos(uPitch),s=sin(uPitch);return vec3(p.x,c*p.y-s*p.z,s*p.y+c*p.z);}
-vec4 project(vec3 p){float d=5.6-p.z;return vec4(p.x*3.0*uZoom/uAspect,p.y*3.0*uZoom+.035*d,0.0,d);}
+vec4 project(vec3 p){float d=5.6-p.z;return vec4(p.x*3.0*uZoom/uAspect+(uAspect>1.1?.38:0.0)*d,p.y*3.0*uZoom+.035*d,0.0,d);}
 vec3 organicTarget(vec3 p,vec3 local,float seed){
  if(local.x>.00001){
   vec3 rel=p-vec3(${CONFIG.tumorCenter.map(v=>v.toFixed(8)).join(',')});
